@@ -66,6 +66,12 @@ Skills are invoked with `/<skill-name>` in Claude Code.
 | **frontend-design** | Create distinctive, production-grade UIs that avoid generic AI aesthetics |
 | **react-best-practices** | React hooks, component patterns, state management, performance optimization |
 
+### Maintenance
+
+| Skill | Usage | Description |
+|-------|-------|-------------|
+| **update-claudes** | `/update-claudes` | Pull latest skills/agents from repo and verify symlinks are in sync |
+
 ## Adding to Projects
 
 To include specific skills in a project's git repo, add as a submodule:
