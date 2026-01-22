@@ -21,7 +21,7 @@ Custom agents invoked automatically by Claude based on task context.
 | Agent | Model | Description |
 |-------|-------|-------------|
 | **code-griller** | Opus | Uncompromising code reviewer that catches every issue - bugs, security vulnerabilities, performance bottlenecks, and code smells. Perfect for pre-production reviews and critical components. |
-| **elite-fullstack-architect** | Sonnet | Rapid full-stack development agent for building complete applications, complex architectures, and performance-critical implementations across any tech stack. |
+| **elite-fullstack-architect** | Opus | Rapid full-stack development agent for building complete applications, complex architectures, and performance-critical implementations across any tech stack. |
 
 ## Skills
 
