@@ -93,16 +93,10 @@ Write failing tests for Phase N:
 - Edge case tests
 - Error handling tests
 
-Follow project test patterns:
-- Kotest DescribeSpec for server code
-- ViewModelTestBase for client ViewModels
-- MockK for mocking
+Follow project test patterns (discover via existing tests).
 ```
 
-Run tests to confirm they fail:
-```bash
-./gradlew test --tests "*NewFeatureTest*"
-```
+Run tests to confirm they fail using the project's test command (e.g., `npm test`, `pytest`, `./gradlew test`, `cargo test`, etc.).
 
 Tests MUST fail at this point (red phase).
 
@@ -118,10 +112,7 @@ Implement Phase N:
 - No extra features beyond what tests require
 ```
 
-Run tests:
-```bash
-./gradlew test --tests "*NewFeatureTest*"
-```
+Run the project's test command.
 
 If tests fail:
 - Analyze failure
@@ -155,9 +146,7 @@ Address code-griller findings:
 
 ### Step 5: Verify Tests Still Pass
 
-```bash
-./gradlew test
-```
+Run the project's full test suite.
 
 If any test fails:
 - Fix the issue
@@ -217,7 +206,7 @@ Move to next phase. Repeat until all phases marked `[x] Complete`.
 **DO NOT STOP UNTIL:**
 
 1. ALL phases in plan file are marked `[x] Complete`
-2. ALL tests pass (`./gradlew test` is green)
+2. ALL tests pass (test suite is green)
 3. Code is reviewed and issues addressed
 4. No TODOs or placeholders in code
 5. No "will implement later" comments
@@ -226,18 +215,11 @@ Move to next phase. Repeat until all phases marked `[x] Complete`.
 
 ## Final Verification
 
-After all phases:
+After all phases, run the project's standard verification commands:
 
-```bash
-# Full test suite
-./gradlew test
-
-# Lint check
-./gradlew ktlintCheck
-
-# Build verification
-./gradlew build
-```
+1. **Full test suite** - Run all tests (e.g., `npm test`, `pytest`, `./gradlew test`, `cargo test`)
+2. **Lint check** - Run project linter if configured (e.g., `npm run lint`, `ruff check`, `./gradlew ktlintCheck`, `cargo clippy`)
+3. **Build verification** - Run full build (e.g., `npm run build`, `./gradlew build`, `cargo build`)
 
 If anything fails, fix it before declaring complete.
 
