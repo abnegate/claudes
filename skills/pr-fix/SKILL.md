@@ -1,7 +1,7 @@
 ---
 name: pr-fix
 description: Fix failing CI checks on a pull request
-argument-hint: <pr-url-or-number>
+argument-hint: <url>
 disable-model-invocation: true
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---

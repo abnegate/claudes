@@ -33,7 +33,7 @@ Skills are invoked with `/<skill-name>` in Claude Code.
 |-------|-------|-------------|
 | **commit** | `/commit [message]` | Create git commit with conventional commit message format |
 | **pr** | `/pr [title]` | Create pull request with proper description |
-| **pr-fix** | `/pr-fix <pr>` | Fix failing CI checks on a pull request |
+| **pr-fix** | `/pr-fix <url>` | Fix failing CI checks on a pull request |
 | **issue** | `/issue <issue-id>` | Implement a Linear issue end-to-end |
 | **hotfix** | `/hotfix <description>` | Emergency hotfix workflow for production issues |
 
