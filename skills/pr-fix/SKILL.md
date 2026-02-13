@@ -67,10 +67,8 @@ If checks still fail:
 - Always checkout the PR branch first: `gh pr checkout $ARGUMENTS`
 - Read failure logs carefully - the error message contains the fix
 - Common failures in this project:
-  - **ktlint**: Run `./gradlew ktlintFormat`
   - **tests**: Check test output, fix code or test
   - **build**: Check compilation errors
-  - **detekt**: Check static analysis issues
 - After each fix, commit with: `fix: <description of what was fixed>`
 
 ## Test Failure Policy
@@ -81,4 +79,4 @@ If checks still fail:
 
 Stop iterating when:
 - All checks pass (required - no exceptions)
-- 3 fix attempts have been made without resolution (escalate to user, do not give up)
+- 5 fix attempts have been made without resolution (escalate to user, do not give up)
