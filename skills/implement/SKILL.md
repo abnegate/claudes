@@ -2,8 +2,6 @@
 name: implement
 description: Full TDD implementation of a feature with review cycles
 argument-hint: <feature description>
-disable-model-invocation: false
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task, AskUserQuestion
 ---
 
 # Implement Feature (TDD)

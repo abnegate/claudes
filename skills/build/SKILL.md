@@ -2,8 +2,6 @@
 name: build
 description: Build the project (auto-detects build system)
 argument-hint: "[target]"
-disable-model-invocation: false
-allowed-tools: Bash, Read, Glob
 ---
 
 # Build Project

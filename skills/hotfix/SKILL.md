@@ -2,8 +2,6 @@
 name: hotfix
 description: Emergency hotfix workflow for production issues
 argument-hint: "<issue-description>"
-disable-model-invocation: true
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task, AskUserQuestion
 ---
 
 # Emergency Hotfix
@@ -84,20 +82,10 @@ Write ONE test that:
 - Verifies the fix works
 - Prevents regression
 
-```bash
-# Run the new test
-./gradlew test --tests "*HotfixTestName*"
-```
-
 ### 3.3 Verify No Breakage
 
-```bash
-# Run full test suite - must pass
-./gradlew test
-
-# Build must succeed
-./gradlew build
-```
+- Run all tests locally
+- Ensure no "pre-existing" failures (fix them if they exist)
 
 ## Phase 4: Quick Review
 

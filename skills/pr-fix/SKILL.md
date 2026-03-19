@@ -1,9 +1,8 @@
 ---
 name: pr-fix
 description: Fix failing CI checks on a pull request
-argument-hint: <url>
+argument-hint: <url> [comments=true|false] [checks=true|false]
 disable-model-invocation: false
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
 # Fix Failing PR Checks
@@ -13,62 +12,104 @@ Fix failing CI checks on a GitHub pull request, iterating until all checks pass.
 ## Arguments
 
 - `$ARGUMENTS` - PR URL or number (e.g., `https://github.com/owner/repo/pull/123` or `123`)
+- `checks` (optional) - Whether to analyze and fix failing checks (default: true)
+- `comments` (optional) - Whether to address comments in the PR (default: false)
+
+## Parsing Arguments
+
+Extract from `$ARGUMENTS`:
+- **PR reference** — the URL or number (first positional value)
+- **checks** — `checks=true` or `checks=false` (default: `true`)
+- **comments** — `comments=true` or `comments=false` (default: `false`)
+
+Example: `/pr-fix https://github.com/owner/repo/pull/123 comments=true checks=false`
 
 ## Workflow
 
-### 1. Get PR Information
+### 1. Checkout the PR
+
+```bash
+gh pr checkout <pr-ref>
+```
+
+### 2. Get PR Information
 
 ```bash
 # Get PR details
-gh pr view $ARGUMENTS --json number,headRefName,statusCheckRollup,url
-
-# Get failing checks
-gh pr checks $ARGUMENTS
+gh pr view <pr-ref> --json number,headRefName,statusCheckRollup,url
 ```
 
-### 2. Analyze Failures
+### 3. Fix Failing Checks (when checks=true)
 
-For each failing check:
+#### 3a. Identify Failures
+
+```bash
+gh pr checks <pr-ref>
+```
+
+#### 3b. Analyze Each Failure
+
 ```bash
 # Get check run details and logs
 gh run view <run-id> --log-failed
 ```
 
-### 3. Fix Issues
+#### 3c. Fix, Commit, Push, and Wait
 
-Based on the failure logs:
-- Identify the root cause
+- Identify the root cause from the logs
 - Make necessary code changes
-- Commit with descriptive message
-
-### 4. Push and Wait
+- Commit with: `fix: <description of what was fixed>`
+- Push and wait for CI:
 
 ```bash
-# Push the fix
 git push
-
-# Wait for checks to start (give CI time to pick up the push)
 sleep 10
-
-# Poll check status until complete or timeout (10 minutes max)
-gh pr checks $ARGUMENTS --watch
+gh pr checks <pr-ref> --watch
 ```
+
+- If checks still fail, repeat from 3a (up to 5 attempts)
+
+### 4. Address PR Comments (when comments=true)
+
+#### 4a. Fetch Review Comments
+
+```bash
+gh pr view <pr-ref> --json reviews,comments
+# For detailed inline comments:
+gh api repos/{owner}/{repo}/pulls/{number}/comments
+```
+
+#### 4b. Address Each Comment
+
+For each unresolved review comment:
+- Read the referenced code and the reviewer's feedback
+- Make the requested change (or the closest reasonable interpretation)
+- Commit with: `fix: address review — <summary of change>`
+
+#### 4c. Push and Wait
+
+```bash
+git push
+sleep 10
+gh pr checks <pr-ref> --watch
+```
+
+If fixing comments introduces new check failures, loop back to step 3.
 
 ### 5. Iterate If Needed
 
-If checks still fail:
-- Analyze new failures
-- Apply fixes
-- Push and wait again
-- Repeat until all checks pass or you've exhausted reasonable attempts (max 3 iterations)
+Continue iterating until:
+- All enabled checks pass
+- All comments are addressed (if comments=true)
+- Or you've exhausted reasonable attempts (max 5 iterations — then escalate to user)
 
 ## Important Notes
 
-- Always checkout the PR branch first: `gh pr checkout $ARGUMENTS`
-- Read failure logs carefully - the error message contains the fix
-- Common failures in this project:
+- Read failure logs carefully — the error message usually contains the fix
+- Common check failures:
   - **tests**: Check test output, fix code or test
   - **build**: Check compilation errors
+- When addressing comments, respect the reviewer's intent — don't just make superficial changes
 - After each fix, commit with: `fix: <description of what was fixed>`
 
 ## Test Failure Policy

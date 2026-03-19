@@ -2,8 +2,6 @@
 name: review-fix
 description: Review code and fix issues in cycles
 argument-hint: "[cycles=1]"
-disable-model-invocation: true
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task
 ---
 
 # Review and Fix

@@ -2,8 +2,6 @@
 name: cleanup
 description: Find and remove dead code, unused imports, and technical debt
 argument-hint: "[module|all]"
-disable-model-invocation: true
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task
 ---
 
 # Code Cleanup

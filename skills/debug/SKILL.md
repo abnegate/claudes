@@ -2,8 +2,6 @@
 name: debug
 description: Debug and fix failing tests or errors
 argument-hint: "<test-name|error-description|stack-trace>"
-disable-model-invocation: true
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task
 ---
 
 # Debug and Fix
