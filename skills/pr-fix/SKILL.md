@@ -85,6 +85,7 @@ For each unresolved review comment:
 - Read the referenced code and the reviewer's feedback
 - Make the requested change (or the closest reasonable interpretation)
 - Commit with: `fix: address review — <summary of change>`
+- It does not matter whether it's a bot or human comment
 
 #### 4c. Push and Wait
 
