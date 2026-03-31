@@ -14,177 +14,149 @@ Systematic cleanup of dead code, unused imports, and technical debt.
 
 - `$ARGUMENTS` - Module to clean up, or `all` for entire codebase
 
-## Phase 0: Baseline
+## Phase 0: Baseline (Parallel)
 
-### 0.1 Run Tests
+**Launch these agents in parallel:**
 
+**Agent A** (`elite-fullstack-architect`): Run the full test suite and capture the output.
 ```bash
-# All tests must pass before starting
 ./gradlew test
 ```
+Report pass/fail status and any existing failures. If tests do not pass, STOP. Do not proceed until all tests are green.
 
-### 0.2 Run Static Analysis
-
+**Agent B** (`elite-fullstack-architect`): Run static analysis tools and capture current warning counts.
 ```bash
-# Get current state
 ./gradlew detekt
 ./gradlew ktlintCheck
 ```
+Report the total warning count and error count for each tool. These are the baseline numbers.
 
-Note current warnings/errors for comparison.
+**Wait for both agents to complete.** If Agent A reports test failures, fix them before continuing. Record Agent B's baseline counts for comparison in the final summary.
 
-## Phase 1: Unused Imports
+## Phase 1: Detection Sweep (Parallel)
 
-### 1.1 Find and Remove
+All detection work is read-only analysis. **Launch these agents in parallel:**
 
-```bash
-# KtLint handles unused imports
-./gradlew ktlintFormat
-```
+**Agent A - Unused Imports** (`Explore`): Scan all `.kt` files in the target module(s) for unused imports. Use IDE-style analysis: for each import statement, search the file body for usage of the imported symbol. Produce a list of files with unused imports and the specific import lines.
 
-### 1.2 Verify
+**Agent B - Dead Code** (`Explore`): Search for dead code across the target module(s). Look for:
+- Unused private functions (private functions with zero call sites)
+- Unused private classes (private classes never referenced)
+- Unused parameters (parameters never read in the function body)
+- Unreachable code (code after unconditional return/throw)
+- Commented-out code blocks (3+ consecutive commented lines that look like code)
+- `TODO`/`FIXME`/`HACK`/`XXX` comments
 
-```bash
-./gradlew test
-```
+For each finding, note the file path, line number, symbol name, and why it appears dead.
 
-## Phase 2: Dead Code Detection
+**Agent C - Deprecated Code** (`Explore`): Search for all deprecation markers across the target module(s):
+- `@Deprecated` annotations
+- `@deprecated` KDoc tags
+- Calls to functions/classes that are annotated `@Deprecated`
 
-### 2.1 Find Unused Code
+For each finding, note the file, the deprecated symbol, and whether a replacement is specified.
 
-Look for:
-- Unused private functions
-- Unused private classes
-- Unused parameters
-- Unreachable code
-- Commented-out code
+**Agent D - Technical Debt** (`Explore`): Search for technical debt indicators across the target module(s):
+- `@Suppress` annotations (note what warning is suppressed)
+- TODO/FIXME comments with context
+- Known workarounds (comments mentioning "workaround", "hack", "temporary")
+- Outdated patterns (e.g., deprecated Kotlin idioms, old coroutine patterns)
 
-```bash
-# Use detekt for dead code detection
-./gradlew detekt
+For each finding, assess severity (High/Medium/Low) and estimated effort (Low/Medium/High).
 
-# Search for TODO/FIXME comments
-grep -r "TODO\|FIXME\|HACK\|XXX" --include="*.kt"
-```
+**Agent E - Code Style** (`Explore`): Analyze code style consistency across the target module(s):
+- Naming convention violations (inconsistent casing, abbreviations, Hungarian notation)
+- Inconsistent error handling patterns (mixed try-catch vs Result vs runCatching)
+- Inconsistent logging patterns (mixed logger frameworks, inconsistent log levels)
+- Section-header comments (`// ---`, `// ===`, `// ****`) that should be removed
 
-### 2.2 Analyze Each Finding
+**Agent F - Stale Documentation** (`Explore`): Scan for documentation issues across the target module(s):
+- Comments that restate the code (e.g., `// increment counter` above `counter++`)
+- Outdated comments that reference renamed/removed symbols
+- TODO comments that reference completed work
+- Public API functions/classes missing KDoc
+- KDoc with `@param`/`@return` tags that don't match the current signature
 
-For each potential dead code:
-1. Verify it's truly unused (search for references)
-2. Check if it's used via reflection
-3. Check if it's a public API
-4. Determine if safe to remove
+**Wait for all six agents to complete.** Collect all findings into a unified cleanup manifest organized by file. This prevents conflicting edits when multiple issues exist in the same file.
 
-### 2.3 Remove Dead Code
+## Phase 2: Automated Fixes (Sequential)
 
-Remove confirmed dead code:
-- Delete unused functions
-- Delete unused classes
-- Remove commented-out code
-- Clean up TODO comments (fix or remove)
+These steps modify code and must run sequentially to avoid conflicts.
 
-### 2.4 Verify After Each Removal
-
-```bash
-./gradlew test
-```
-
-## Phase 3: Deprecated Code
-
-### 3.1 Find Deprecations
-
-```bash
-# Find deprecated usages
-grep -r "@Deprecated\|@deprecated" --include="*.kt"
-```
-
-### 3.2 Update or Remove
-
-For each deprecation:
-- If replacement exists, migrate to it
-- If owned by us, consider removal timeline
-- Document why if keeping
-
-## Phase 4: Technical Debt
-
-### 4.1 Identify Debt
-
-Look for:
-- Suppressed warnings (`@Suppress`)
-- TODO comments
-- Known workarounds
-- Outdated patterns
-- Inconsistent code
-
-### 4.2 Prioritize
-
-Create list of tech debt items:
-
-| Item | Severity | Effort | Action |
-|------|----------|--------|--------|
-| [Item 1] | High | Low | Fix now |
-| [Item 2] | Medium | High | Create issue |
-| [Item 3] | Low | Low | Fix now |
-
-### 4.3 Quick Wins
-
-Fix items that are:
-- High severity + Low effort
-- Low severity + Low effort
-
-Create issues for high-effort items.
-
-## Phase 5: Code Style
-
-### 5.1 Format
+### 2.1 Unused Imports
 
 ```bash
 ./gradlew ktlintFormat
 ```
 
-### 5.2 Consistent Patterns
+This handles the bulk of import cleanup automatically.
 
-Look for inconsistencies:
-- Naming conventions
-- Error handling patterns
-- Logging patterns
-- Comment styles
-
-Standardize where possible.
-
-## Phase 6: Documentation
-
-### 6.1 Remove Stale Comments
-
-Comments that:
-- Describe obvious code
-- Are outdated
-- Repeat the code
-- Are TODOs that won't be done
-
-### 6.2 Add Missing Documentation
-
-For public APIs:
-- Add KDoc where missing
-- Update outdated docs
-
-## Phase 7: Final Verification
+### 2.2 Verify Imports
 
 ```bash
-# All tests pass
 ./gradlew test
+```
 
-# Lint is clean
+## Phase 3: Manual Cleanup (Parallel by File Group)
+
+Using the unified manifest from Phase 1, partition the affected files into independent groups (files that don't import each other). **Launch parallel agents per group:**
+
+**Each Agent** (`elite-fullstack-architect`): For its assigned file group, apply all queued fixes from the manifest:
+
+1. **Dead code removal**: Delete confirmed unused private functions, classes, parameters. Remove commented-out code blocks. Clean up or remove stale TODO comments.
+2. **Deprecated code migration**: Where a replacement is specified in the `@Deprecated` annotation, migrate callers to the replacement. Where we own the deprecated symbol and it has zero external callers, remove it.
+3. **Technical debt quick wins**: Fix items that are High severity + Low effort or Low severity + Low effort. For High effort items, add a `// TODO(cleanup): [description]` or create a GitHub issue.
+4. **Code style normalization**: Fix naming violations, remove section-header comments (`// ---`, `// ===`), standardize error handling within each file.
+5. **Documentation cleanup**: Remove stale/obvious comments. Add KDoc to public APIs that are missing it. Fix mismatched `@param`/`@return` tags.
+
+After all edits in the group, run a targeted compile check:
+```bash
+./gradlew compileKotlin
+```
+
+**Wait for all file-group agents to complete.**
+
+### 3.1 Integration Verify
+
+```bash
+./gradlew test
+```
+
+If tests fail, identify which file group introduced the failure and fix it before proceeding.
+
+## Phase 4: Final Formatting
+
+```bash
+./gradlew ktlintFormat
+```
+
+## Phase 5: Final Verification (Parallel)
+
+**Launch these agents in parallel:**
+
+**Agent A** (`elite-fullstack-architect`): Run the full test suite.
+```bash
+./gradlew test
+```
+
+**Agent B** (`elite-fullstack-architect`): Run lint checks.
+```bash
 ./gradlew ktlintCheck
+```
 
-# Detekt passes
+**Agent C** (`elite-fullstack-architect`): Run detekt analysis.
+```bash
 ./gradlew detekt
+```
 
-# Build succeeds
+**Agent D** (`elite-fullstack-architect`): Run a full build.
+```bash
 ./gradlew build
 ```
 
-## Phase 8: Summary
+**Wait for all four agents to complete.** All must pass. If any fail, fix the issues and re-run only the failing checks. Compare detekt/ktlint warning counts against the Phase 0 baseline to quantify improvement.
+
+## Phase 6: Summary
 
 Create cleanup report:
 
@@ -194,25 +166,30 @@ Create cleanup report:
 ## Summary
 - Files modified: X
 - Lines removed: Y
-- Warnings fixed: Z
+- Warnings fixed: Z (before: B, after: A)
 
 ## Changes Made
 
-### Unused Code Removed
-- [file:function] - [reason]
-
-### Imports Cleaned
+### Unused Imports Removed
 - X files had unused imports removed
 
 ### Dead Code Removed
-- [description]
+- [file:symbol] - [why it was dead]
 
-### Tech Debt Addressed
+### Deprecated Code Migrated
+- [file:symbol] - migrated to [replacement]
+
+### Technical Debt Addressed
 - [item] - [what was done]
 
-### Issues Created
-- #123 - [tech debt item]
-- #124 - [tech debt item]
+### Code Style Fixed
+- [description of patterns normalized]
+
+### Documentation Cleaned
+- [stale comments removed, KDoc added]
+
+### Issues Created for High-Effort Items
+- #NNN - [tech debt item]
 
 ## Remaining Items
 - [items that need future attention]
@@ -224,6 +201,10 @@ Make atomic commits:
 ```bash
 git commit -m "(chore): Remove unused imports"
 git commit -m "(chore): Remove dead code in [module]"
+git commit -m "(chore): Migrate deprecated API usage"
+git commit -m "(chore): Fix technical debt quick wins"
+git commit -m "(chore): Normalize code style"
+git commit -m "(chore): Clean up stale documentation"
 git commit -m "(chore): Fix detekt warnings"
 ```
 
@@ -231,8 +212,10 @@ git commit -m "(chore): Fix detekt warnings"
 
 - [ ] All unused imports removed
 - [ ] Dead code removed
-- [ ] Deprecations addressed
+- [ ] Deprecations addressed or documented
 - [ ] Quick-win tech debt fixed
-- [ ] Code formatted
+- [ ] Code formatted and style consistent
+- [ ] Stale documentation cleaned
 - [ ] All tests pass
+- [ ] Detekt/ktlint warning count reduced from baseline
 - [ ] Cleanup report created

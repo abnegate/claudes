@@ -7,84 +7,69 @@ allowed-tools: Bash, Read, Grep, Glob, Task
 
 # Code Review
 
-Perform a thorough code review of the current branch against the base branch using the code-griller agent.
+Perform a thorough code review of the current branch against the base branch using parallel agents for speed.
 
 ## Workflow
 
-### 1. Determine Base Branch
+### 1. Gather Context (Parallel)
 
+Launch these in parallel:
+
+**Agent 1 — Branch & Diff Info:**
 ```bash
-# Get current branch
 CURRENT=$(git branch --show-current)
-
-# Check if this is appwrite (uses 1.8.x) or other project (uses main)
-if git remote -v | grep -q "appwrite"; then
-    BASE="1.8.x"
-else
-    BASE="main"
-fi
-
+if git remote -v | grep -q "appwrite"; then BASE="1.8.x"; else BASE="main"; fi
 echo "Reviewing $CURRENT against $BASE"
+git diff $BASE...HEAD --name-only
+git diff $BASE...HEAD --stat
 ```
 
-### 2. Get Changes
-
+**Agent 2 — Full Diff:**
 ```bash
-# See what files changed
-git diff $BASE...HEAD --name-only
-
-# Get full diff for review
 git diff $BASE...HEAD
 ```
 
-### 3. Invoke Code Griller
+**Agent 3 — Commit History:**
+```bash
+git log $BASE..HEAD --oneline
+```
 
-Use the **code-griller** subagent to perform a comprehensive review:
+### 2. Parallel Code Review
 
-- Pass the diff and changed files to the code-griller agent
-- Request a thorough, uncompromising review
+Launch these **code-griller** agents in parallel, each reviewing the same diff but focused on a different dimension:
 
-### 4. Review Focus Areas
-
-The code-griller should examine:
-
-**Critical Issues**
+**Agent A — Security & Data Integrity:**
 - Security vulnerabilities (injection, auth bypass, data exposure)
 - Data corruption risks
 - Breaking changes to public APIs
+- Resource leaks
 
-**Code Quality**
+**Agent B — Logic & Correctness:**
 - Logic errors and edge cases
 - Error handling gaps
-- Resource leaks
 - Race conditions
-
-**Maintainability**
-- Code clarity and readability
 - Proper naming conventions
 - DRY violations
-- Overly complex logic
 
-**Performance**
+**Agent C — Performance & Testing:**
 - N+1 queries
 - Unnecessary allocations
 - Missing indexes (for DB changes)
 - Inefficient algorithms
-
-**Testing**
 - Missing test coverage
 - Inadequate edge case testing
 - Flaky test patterns
 
-**Project Standards**
+**Agent D — Project Standards:**
 - KtLint compliance
 - Proper use of Exposed ORM patterns
 - Correct serialization annotations
 - MVI pattern adherence (client code)
+- Code clarity and readability
 
-### 5. Output Format
+### 3. Merge & Report
 
-Provide a structured report:
+Combine findings from all agents into a single structured report:
 
 ```
 ## Review Summary
@@ -108,3 +93,5 @@ Provide a structured report:
 ## Positive Notes
 - Things done well
 ```
+
+Deduplicate findings across agents. Prioritize by severity.

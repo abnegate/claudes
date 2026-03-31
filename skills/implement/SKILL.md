@@ -29,12 +29,55 @@ Ask questions until you have COMPLETE understanding:
 
 Use `AskUserQuestion` to gather any missing information. Do NOT proceed with ambiguity.
 
-### 0.2 Create Implementation Plan
+### 0.2 Parallel Codebase Exploration
+
+**Launch THREE parallel agents simultaneously** to explore the codebase. Do NOT run these sequentially.
+
+**Agent 1 - Pattern Discovery:**
+```
+Explore the codebase to find existing patterns relevant to this feature:
+- Architecture patterns (layering, module structure, dependency flow)
+- Naming conventions and code style
+- Error handling patterns
+- Configuration and environment patterns
+- How similar features are structured
+Report back with a summary of patterns to follow.
+```
+
+**Agent 2 - Affected Module Analysis:**
+```
+Analyze all modules and files that will be affected by this feature:
+- Map the dependency graph of affected areas
+- Identify public APIs that will change
+- Find all callers/consumers of code that will be modified
+- Identify shared utilities or helpers relevant to the feature
+- Flag any areas with high coupling that need careful handling
+Report back with a map of affected modules and their relationships.
+```
+
+**Agent 3 - Test Pattern Discovery:**
+```
+Find and analyze the project's testing patterns:
+- Test framework and runner in use
+- Test file naming and location conventions
+- Test helper utilities and fixtures
+- Mocking/stubbing patterns
+- Integration test setup patterns
+- How test data is managed
+- The exact commands to run tests, lint, and build
+Report back with a testing guide for this project.
+```
+
+**Wait for all three agents to complete.** Synthesize their findings before proceeding.
+
+### 0.3 Create Implementation Plan
 
 Break down into small, incremental phases. Each phase should be:
 - Self-contained and testable
 - Small enough to implement in one focused session
 - Building on previous phases
+
+Incorporate findings from all three exploration agents into the plan.
 
 **Write the plan to `.claude/plans/PLAN-<feature-slug>.md`:**
 
@@ -44,6 +87,14 @@ Break down into small, incremental phases. Each phase should be:
 **Status:** In Progress
 **Created:** [date]
 **Description:** [brief description]
+
+## Codebase Context
+- **Patterns:** [summary from Agent 1]
+- **Affected Modules:** [summary from Agent 2]
+- **Test Approach:** [summary from Agent 3]
+- **Test Command:** [exact test command]
+- **Lint Command:** [exact lint command]
+- **Build Command:** [exact build command]
 
 ## Phases
 
@@ -91,10 +142,10 @@ Write failing tests for Phase N:
 - Edge case tests
 - Error handling tests
 
-Follow project test patterns (discover via existing tests).
+Follow project test patterns (discovered in Phase 0.2).
 ```
 
-Run tests to confirm they fail using the project's test command (e.g., `npm test`, `pytest`, `./gradlew test`, `cargo test`, etc.).
+Run tests to confirm they fail using the project's test command.
 
 Tests MUST fail at this point (red phase).
 
@@ -118,17 +169,27 @@ If tests fail:
 - Re-run tests
 - Repeat until ALL tests pass
 
-### Step 3: Code Review
+### Step 3: Parallel Review + Test Verification
 
-Use **code-griller** to review the phase implementation:
+**Launch TWO parallel agents simultaneously.** Do NOT run these sequentially.
 
+**Agent A - Code Review:**
 ```
-Review the changes for Phase N:
+Use code-griller to review the changes for Phase N:
 - git diff from before phase started
 - Focus on: security, correctness, maintainability, performance
 - Check test quality and coverage
 - Verify project patterns followed strictly
+- Report all findings categorized as critical/warning/suggestion
 ```
+
+**Agent B - Full Test Suite:**
+```
+Run the project's FULL test suite (not just the new tests).
+Report: pass/fail status, any failures with details, total test count.
+```
+
+**Wait for both agents to complete.** Collect the review findings and test results.
 
 ### Step 4: Address Review Findings
 
@@ -142,21 +203,42 @@ Address code-griller findings:
 4. Apply reasonable suggestions
 ```
 
-### Step 5: Verify Tests Still Pass
+### Step 5: Parallel Test Verification + Refactor Analysis
 
+**Launch TWO parallel agents simultaneously.** Do NOT run these sequentially.
+
+**Agent A - Test Verification:**
+```
 Run the project's full test suite.
+Confirm all tests pass after review fixes.
+Report: pass/fail status, any failures with details.
+```
 
-If any test fails:
-- Fix the issue
+**Agent B - Refactor Analysis:**
+```
+Analyze the Phase N code for refactoring opportunities:
+- Duplicated code that can be extracted
+- Overly complex methods that should be split
+- Naming improvements
+- Unnecessary abstractions or missing abstractions
+- Performance improvements that don't sacrifice readability
+Report a prioritized list of refactoring actions.
+```
+
+**Wait for both agents to complete.**
+
+If Agent A reports test failures:
+- Fix the issues immediately
 - Re-run tests
 - Do NOT proceed until green
 
 ### Step 6: Refactor (TDD Refactor)
 
-Use **elite-fullstack-architect** for cleanup:
+Apply the refactoring actions identified by Agent B in Step 5:
 
 ```
 Refactor Phase N code:
+- Apply the prioritized refactoring actions from the analysis
 - Improve readability
 - Remove duplication
 - Optimize if needed
@@ -213,13 +295,29 @@ Move to next phase. Repeat until all phases marked `[x] Complete`.
 
 ## Final Verification
 
-After all phases, run the project's standard verification commands:
+**Launch THREE parallel agents simultaneously** for final verification. Do NOT run these sequentially.
 
-1. **Full test suite** - Run all tests (e.g., `npm test`, `pytest`, `./gradlew test`, `cargo test`)
-2. **Lint check** - Run project linter if configured (e.g., `npm run lint`, `ruff check`, `./gradlew ktlintCheck`, `cargo clippy`)
-3. **Build verification** - Run full build (e.g., `npm run build`, `./gradlew build`, `cargo build`)
+**Agent 1 - Full Test Suite:**
+```
+Run all tests (e.g., npm test, pytest, ./gradlew test, cargo test).
+Report: pass/fail, failure details, total count.
+```
 
-If anything fails, fix it before declaring complete.
+**Agent 2 - Lint Check:**
+```
+Run project linter if configured (e.g., npm run lint, ruff check, ./gradlew ktlintCheck, cargo clippy).
+Report: pass/fail, all violations with file locations.
+```
+
+**Agent 3 - Build Verification:**
+```
+Run full build (e.g., npm run build, ./gradlew build, cargo build).
+Report: pass/fail, any errors or warnings.
+```
+
+**Wait for all three agents to complete.**
+
+If ANY agent reports failure, fix the issue and re-run the failing verification. Do not re-run passing verifications unless the fix could have affected them.
 
 ## Summary Report
 
@@ -232,6 +330,11 @@ Update the plan file with final summary:
 **Created:** [date]
 **Completed:** [date]
 **Description:** [brief description]
+
+## Codebase Context
+- **Patterns:** [summary]
+- **Affected Modules:** [summary]
+- **Test Approach:** [summary]
 
 ## Phases
 
@@ -272,3 +375,4 @@ Update the plan file with final summary:
 5. **NO BROKEN TESTS** - Fix before moving on
 6. **ASK QUESTIONS EARLY** - Don't guess requirements
 7. **NO "PRE-EXISTING" EXCUSES** - There is no such thing as a "pre-existing" test failure. If any test fails, fix it. The task always completes with completely passing tests.
+8. **PARALLEL AGENTS ARE MANDATORY** - When this skill says "launch parallel agents simultaneously", you MUST use parallel tool calls. Running them sequentially defeats the purpose and wastes time. Independent work streams must always run concurrently.

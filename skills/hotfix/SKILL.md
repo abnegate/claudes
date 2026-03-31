@@ -8,7 +8,7 @@ argument-hint: "<issue-description>"
 
 Rapid response workflow for critical production issues.
 
-**PRIORITY: Fix the issue with minimal changes. Speed matters.**
+**PRIORITY: Fix the issue with minimal changes. Speed matters. Use parallel agents aggressively.**
 
 ## Arguments
 
@@ -24,48 +24,62 @@ Ask if not clear:
 - Is there a security vulnerability?
 - What's the blast radius?
 
-### 0.2 Get Context
+### 0.2 Gather Context (Parallel)
 
-```bash
-# Check current production state
+Launch **three agents in parallel** to gather all context simultaneously:
+
+**Agent A: Fetch and inspect git state**
+```
 git fetch origin
-git log origin/main --oneline -5
+git log origin/main --oneline -10
+git diff origin/main..HEAD --stat
+```
 
-# Check recent deployments
+**Agent B: Check recent deploys**
+```
 gh run list --limit 5
 ```
+Report which workflows ran, their status, and when they completed.
+
+**Agent C: Check recent CI failures**
+```
+gh run list --status failure --limit 5
+```
+Report any recent failures and whether they relate to the reported issue.
+
+Wait for all three agents to complete. Synthesize their findings before proceeding.
 
 ## Phase 1: Create Hotfix Branch
 
 ```bash
-# Branch from main (or current release branch)
 git checkout main
 git pull origin main
 git checkout -b hotfix/$(date +%Y%m%d)-brief-description
 ```
 
-## Phase 2: Reproduce & Diagnose
+## Phase 2: Reproduce and Diagnose (Parallel)
 
-### 2.1 Reproduce Locally
+Launch **two agents in parallel** to reproduce and search for root cause simultaneously:
 
-If possible:
-- Replicate the exact conditions
-- Capture error logs/stack traces
+**Agent A: Reproduce locally**
+- Replicate the exact conditions described in `$ARGUMENTS`
+- Capture error logs and stack traces
 - Identify the failing code path
+- Write findings to a temporary summary
 
-### 2.2 Root Cause (Quick)
+**Agent B: Search for root cause**
+- Check recent commits that could have caused this:
+  ```
+  git log --oneline -20 -- path/to/affected/code
+  ```
+- Read the stack trace and trace back through call sites
+- Identify candidate commits with `git log --all --oneline --since="3 days ago"`
+- Use `git diff` on suspect commits to find the breaking change
+- Write findings to a temporary summary
 
-Find the issue fast:
-- Check recent commits that could have caused this
-- Look at the stack trace
-- Identify the minimal fix
+Wait for both agents. Combine their findings to confirm the root cause and identify the minimal fix.
 
-```bash
-# Find recent changes to affected area
-git log --oneline -20 -- path/to/affected/code
-```
-
-## Phase 3: Minimal Fix
+## Phase 3: Fix, Test, and Review (Parallel After Fix)
 
 ### 3.1 Implement Fix
 
@@ -82,21 +96,30 @@ Write ONE test that:
 - Verifies the fix works
 - Prevents regression
 
-### 3.3 Verify No Breakage
+### 3.3 Verify and Review (Parallel)
 
+After the fix and regression test are written, launch **two agents in parallel**:
+
+**Agent A: Run full test suite**
 - Run all tests locally
-- Ensure no "pre-existing" failures (fix them if they exist)
+- Report pass/fail status for every suite
+- If any test fails, report the failure details (there are no "pre-existing" failures; all must pass)
 
-## Phase 4: Quick Review
+**Agent B: Code-griller review**
+- Use **code-griller** for focused review of the fix:
+  - Is the fix correct?
+  - Could it cause other issues?
+  - Is it the minimal change needed?
+- Report any critical issues found (skip suggestions, this is a hotfix)
 
-Use **code-griller** for focused review:
-- Is the fix correct?
-- Could it cause other issues?
-- Is it the minimal change needed?
+Wait for both agents. If either agent found issues:
+- Fix test failures
+- Fix critical review findings
+- Re-run both agents in parallel again until both pass clean
 
-Fix any critical issues found. Skip suggestions - this is a hotfix.
+## Phase 4: Commit and Ship (Parallel)
 
-## Phase 5: Create PR
+### 4.1 Commit
 
 ```bash
 git add -A
@@ -107,9 +130,28 @@ Issue: [what was broken]
 Fix: [what this changes]
 EOF
 )"
+```
 
+### 4.2 Push and Prepare PR (Parallel)
+
+Launch **two agents in parallel**:
+
+**Agent A: Push to remote**
+```
 git push -u origin HEAD
+```
 
+**Agent B: Prepare PR body**
+Draft the full PR body using context gathered throughout the workflow:
+- The issue description from Phase 0
+- Root cause from Phase 2
+- Fix description from Phase 3
+- Test results from Phase 3
+- Rollback plan
+
+Wait for both agents. Then create the PR:
+
+```bash
 gh pr create --title "(hotfix): [description]" --body "$(cat <<EOF
 ## Emergency Hotfix
 
@@ -133,7 +175,7 @@ EOF
 )"
 ```
 
-## Phase 6: Deployment Checklist
+## Phase 5: Deployment Checklist
 
 Provide deployment instructions:
 

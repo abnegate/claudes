@@ -7,7 +7,7 @@ disable-model-invocation: false
 
 # Fix Failing PR Checks
 
-Fix failing CI checks on a GitHub pull request, iterating until all checks pass.
+Fix failing CI checks on a GitHub pull request, iterating until all checks pass. Uses parallel agents extensively to analyze failures and apply fixes simultaneously.
 
 ## Arguments
 
@@ -32,65 +32,116 @@ Example: `/pr-fix https://github.com/owner/repo/pull/123 comments=true checks=fa
 gh pr checkout <pr-ref>
 ```
 
-### 2. Get PR Information
+### 2. Gather PR Context (Parallel)
 
+Launch these agents in parallel to collect all PR information simultaneously:
+
+**Agent 1 — PR Details:**
 ```bash
-# Get PR details
-gh pr view <pr-ref> --json number,headRefName,statusCheckRollup,url
+gh pr view <pr-ref> --json number,headRefName,baseRefName,statusCheckRollup,url,title,body
 ```
 
-### 3. Fix Failing Checks (when checks=true)
-
-#### 3a. Identify Failures
-
+**Agent 2 — Check Status:**
 ```bash
 gh pr checks <pr-ref>
 ```
 
-#### 3b. Analyze Each Failure
-
+**Agent 3 — PR Diff:**
 ```bash
-# Get check run details and logs
+gh pr diff <pr-ref>
+```
+
+**Agent 4 — Review Comments (when comments=true):**
+```bash
+gh pr view <pr-ref> --json reviews,comments
+gh api repos/{owner}/{repo}/pulls/{number}/comments
+```
+
+### 3. Fix Failing Checks (when checks=true)
+
+#### 3a. Parallel Failure Analysis
+
+For each failing check, launch a separate analysis agent in parallel:
+
+**Agent per failing check:**
+```bash
 gh run view <run-id> --log-failed
 ```
 
-#### 3c. Fix, Commit, Push, and Wait
+Each agent:
+1. Downloads and reads the failure logs for its check
+2. Identifies the root cause
+3. Determines which files need changes
+4. Outputs a structured diagnosis: `{check_name, root_cause, files_to_change, proposed_fix}`
 
-- Identify the root cause from the logs
-- Make necessary code changes
-- Commit with: `fix: <description of what was fixed>`
-- Push and wait for CI:
+#### 3b. Parallel Fixes
+
+Partition diagnosed failures into independent groups (failures affecting different files). Launch parallel **elite-fullstack-architect** agents to fix each group simultaneously.
+
+Rules for parallelization:
+- Failures touching completely different files can always be parallel
+- Failures touching the same file must go to the same agent
+- If two checks fail for the same root cause, combine into one agent
+
+**Per fix agent:**
+1. Apply the proposed fix from the analysis
+2. Verify the fix makes sense in context (read surrounding code)
+3. Make minimal, focused changes
+
+#### 3c. Commit and Push
+
+After all fix agents complete:
+```bash
+git add -A
+git commit -m "fix: <description of what was fixed>"
+git push
+```
+
+#### 3d. Monitor Checks
 
 ```bash
-git push
 sleep 10
 gh pr checks <pr-ref> --watch
 ```
 
-- If checks still fail, repeat from 3a (up to 5 attempts)
+If checks still fail, repeat from 3a (up to 5 attempts).
 
 ### 4. Address PR Comments (when comments=true)
 
-#### 4a. Fetch Review Comments
+#### 4a. Parallel Comment Analysis
+
+Group review comments by file. Launch a separate agent per file (or per independent comment group) in parallel:
+
+**Agent per file/group:**
+1. Read the referenced code and the reviewer's feedback
+2. Determine what change is needed
+3. Output a structured plan: `{file, line, comment_summary, proposed_change}`
+
+#### 4b. Parallel Comment Fixes
+
+Launch parallel **elite-fullstack-architect** agents to address independent comment groups simultaneously:
+
+Rules for parallelization:
+- Comments on different files can always be parallel
+- Comments on the same file region must go to the same agent
+- It does not matter whether it is a bot or human comment
+
+**Per fix agent:**
+1. Apply the requested change (or closest reasonable interpretation)
+2. Respect the reviewer's intent — don't make superficial changes
+3. Verify the fix is consistent with surrounding code
+
+#### 4c. Commit and Push
 
 ```bash
-gh pr view <pr-ref> --json reviews,comments
-# For detailed inline comments:
-gh api repos/{owner}/{repo}/pulls/{number}/comments
+git add -A
+git commit -m "fix: address review comments"
+git push
 ```
 
-#### 4b. Address Each Comment
-
-For each unresolved review comment:
-- Read the referenced code and the reviewer's feedback
-- Make the requested change (or the closest reasonable interpretation)
-- Commit with: `fix: address review — <summary of change>`
-- It does not matter whether it's a bot or human comment
-
-#### 4c. Push and Wait
+#### 4d. Monitor Checks
 
 ```bash
-git push
 sleep 10
 gh pr checks <pr-ref> --watch
 ```
@@ -102,7 +153,7 @@ If fixing comments introduces new check failures, loop back to step 3.
 Continue iterating until:
 - All enabled checks pass
 - All comments are addressed (if comments=true)
-- Or you've exhausted reasonable attempts (max 5 iterations — then escalate to user)
+- Or you have exhausted reasonable attempts (max 5 iterations — then escalate to user)
 
 ## Important Notes
 

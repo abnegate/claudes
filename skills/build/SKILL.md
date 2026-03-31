@@ -12,9 +12,25 @@ Build the project using the detected build system.
 
 - `$ARGUMENTS` - Optional build target or arguments to pass to the build command
 
-## Build System Detection
+## Build System Detection (Parallel)
 
-Detect the build system by checking for these files in order:
+Launch parallel agents to check for multiple build system files simultaneously:
+
+**Agent 1 — JVM Build Systems**:
+Check for: `build.gradle.kts`, `build.gradle`, `pom.xml`
+
+**Agent 2 — Native/Systems Build Systems**:
+Check for: `Cargo.toml`, `go.mod`, `Makefile`, `CMakeLists.txt`, `build.zig`
+
+**Agent 3 — Web/Scripting Build Systems**:
+Check for: `package.json`, `deno.json`, `bun.lockb`, `composer.json`, `Gemfile`, `mix.exs`, `setup.py`, `pyproject.toml`
+
+**Agent 4 — Container Build Systems**:
+Check for: `compose.yaml`, `compose.yml`, `docker-compose.yaml`, `docker-compose.yml`, `Dockerfile`
+
+Use the first match from the combined results, prioritized in the order below.
+
+### Detection Priority Table
 
 | File | Build System | Build Command | Test Command |
 |------|--------------|---------------|--------------|
@@ -38,26 +54,30 @@ Detect the build system by checking for these files in order:
 
 ## Execution
 
-1. **Detect**: Check for build files in project root
+1. **Detect**: Run parallel detection agents above
 2. **Report**: Tell user which build system was detected
 3. **Build**: Run the appropriate build command
    - If `$ARGUMENTS` provided, append to build command or use as target
-4. **Verify**: Run tests after successful build
-5. **Report**: Show build status, any errors, and summary
+4. **Verify (Parallel)**: After successful build, launch TWO parallel agents:
+   - **Agent 1 — Run Tests**: Execute the test command for the detected build system
+   - **Agent 2 — Run Lint**: Execute the lint/format-check command if one exists for the detected build system (e.g., `./gradlew ktlintCheck`, `<pm> run lint`, `cargo clippy`, `go vet ./...`)
+5. **Report**: Show build status, test results, lint results, and summary
 
-### Node.js Specifics
+### Node.js Specifics (Parallel Detection)
 
-For Node.js projects, first detect the package manager (`<pm>` in table above):
+For Node.js projects, launch TWO parallel agents to determine configuration:
 
-1. **Check for lock files** (in order of priority):
-   - `bun.lockb` → use `bun`
-   - `pnpm-lock.yaml` → use `pnpm`
-   - `yarn.lock` → use `yarn`
-   - Otherwise → use `npm`
+**Agent 1 — Detect Package Manager** (check for lock files in priority order):
+- `bun.lockb` -> use `bun`
+- `pnpm-lock.yaml` -> use `pnpm`
+- `yarn.lock` -> use `yarn`
+- Otherwise -> use `npm`
 
-2. **Check `package.json` scripts**:
-   - If `build` script exists: `<pm> run build`
-   - If `build` script doesn't exist but it's a TypeScript project: `<pm> exec tsc` or `npx tsc`
+**Agent 2 — Check package.json Scripts**:
+- Read `package.json` and determine available scripts
+- If `build` script exists: `<pm> run build`
+- If `build` script doesn't exist but it's a TypeScript project: `<pm> exec tsc` or `npx tsc`
+- Note available `test` and `lint` scripts for verification phase
 
 ### Gradle Specifics
 
@@ -110,14 +130,21 @@ For PHP projects with `composer.json`:
 
 **IMPORTANT:** If any tests fail during or after the build, fix them. There is no such thing as a "pre-existing" test failure - all test failures must be resolved before the task is considered complete. The task always completes with completely passing tests.
 
-## Error Handling
+## Error Handling (Parallel Diagnosis)
 
-If build fails:
-1. Read the error output carefully
-2. Identify the root cause
-3. Fix the issue
-4. Re-run the build
-5. Repeat until build succeeds
+If the build fails, launch TWO parallel agents to diagnose:
+
+**Agent 1 — Analyze Error Output**:
+- Parse the build error output
+- Identify the root cause (missing dependency, syntax error, type error, etc.)
+- Propose a specific fix
+
+**Agent 2 — Search for Similar Patterns**:
+- Grep the codebase for similar patterns that compile successfully
+- Check recent git history for changes that may have introduced the breakage
+- Look for related configuration or dependency changes
+
+Once both agents complete, synthesize their findings to apply the fix, then re-run the build. Repeat until the build succeeds.
 
 If no build system detected:
 - Report to user that no recognized build system was found

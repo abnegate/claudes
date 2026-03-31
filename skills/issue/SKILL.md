@@ -16,45 +16,48 @@ Take a Linear issue and implement it completely using the full TDD workflow.
 
 - `$ARGUMENTS` - Linear issue ID (e.g., `PLOT-123`)
 
-## Phase 0: Issue Analysis
+## Phase 0: Issue Analysis (Parallel)
 
-### 0.1 Fetch Issue Details
+Launch THREE parallel agents simultaneously to gather all context at once:
 
-Use Linear MCP server to get issue details:
-- Title
-- Description
-- Labels
-- Priority
-- Assignee
+**Agent 1 — Fetch Issue Details** (via Linear MCP):
+- Title, description, labels, priority, assignee
 - Parent issue (if sub-task)
-- Related issues
-- Comments
+- Related issues and comments
+- Extract: what needs to be done, acceptance criteria, priority level, discussion context
 
-### 0.2 Understand Requirements
+**Agent 2 — Explore Codebase**:
+- Use Glob and Grep to map the project structure
+- Identify relevant source directories, test directories, and configuration files
+- Find existing patterns, naming conventions, and architectural style
+- Locate modules most likely to be affected based on common keywords from the issue ID prefix
 
-Extract from the issue:
-- What needs to be done
-- Acceptance criteria (if specified)
-- Related issues
-- Priority level
-- Any discussion in comments
+**Agent 3 — Check Recent History**:
+- `git log --oneline -20` for recent changes
+- `git log --oneline --all --since="2 weeks ago"` for broader context
+- Identify if anyone has worked on related areas recently
+- Check for any in-flight branches that might conflict
 
-### 0.3 Update Issue Status
+### 0.1 Synthesize Results
+
+Once all three agents complete, combine their outputs to form a unified understanding of:
+- What the issue requires
+- Where in the codebase the work will happen
+- What recent changes might be relevant or conflicting
+
+### 0.2 Update Issue Status
 
 Move issue to "In Progress" state via Linear MCP.
 
-### 0.4 Create Branch
+### 0.3 Create Branch
 
 ```bash
-# Use issue ID for branch name
 ISSUE_ID="$ARGUMENTS"
 ISSUE_TITLE=$(echo "[title from Linear]" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-40)
-
-# Create branch
 git checkout -b "${ISSUE_ID}-${ISSUE_TITLE}"
 ```
 
-### 0.5 Clarify If Needed
+### 0.4 Clarify If Needed
 
 If the issue is ambiguous:
 - Check comments for clarification
@@ -62,33 +65,66 @@ If the issue is ambiguous:
 - Add clarification as comment to Linear issue
 - Do NOT proceed with assumptions
 
-## Phase 1: Plan Implementation
+## Phase 1: Plan Implementation (Parallel Exploration)
 
-Use `/implement` workflow:
+Before creating the plan, launch parallel exploration agents for each module or area that will be affected:
 
-1. Create implementation plan based on issue requirements
+**For each affected module**, launch a parallel agent to:
+- Read the key files in that module
+- Understand its public API and internal structure
+- Identify test patterns already in use
+- Note dependencies and coupling points
+
+Once all exploration agents complete, synthesize findings into the implementation plan:
+
+1. Create implementation plan based on issue requirements and exploration results
 2. Write plan to `.claude/plans/PLAN-${ISSUE_ID}.md`
-3. Break into phases with tests
+3. Break into phases with tests, informed by actual codebase patterns discovered
 
 ## Phase 2: Execute Plan
 
-Follow full `/implement` workflow:
+Delegate to `/implement` workflow which handles its own parallelization:
 - TDD for each phase
 - Code review with code-griller
 - Fix all issues
 - Update plan file as phases complete
 
-## Phase 3: Finalize
+## Phase 3: Finalize (Parallel Verification + PR)
 
-### 3.1 Verify All Tests Pass
+Launch FOUR parallel agents simultaneously:
 
+**Agent 1 — Run Tests**:
 ```bash
 ./gradlew test
+```
+Report pass/fail status and any failures.
+
+**Agent 2 — Run Lint**:
+```bash
 ./gradlew ktlintCheck
+```
+Report any lint violations.
+
+**Agent 3 — Run Build**:
+```bash
 ./gradlew build
 ```
+Report build success or failure.
+
+**Agent 4 — Prepare PR Content**:
+While verification runs, draft the PR title, body, and summary by:
+- Reviewing all commits on the branch vs main
+- Summarizing changes made
+- Listing test coverage additions
+- Formatting the PR body with issue link
+
+### 3.1 Handle Verification Failures
+
+If any verification agent reports failures, fix them before proceeding. Re-run only the failed checks after fixing.
 
 ### 3.2 Create PR Linked to Issue
+
+Using the PR content prepared by Agent 4 (adjusted if fixes were needed):
 
 ```bash
 gh pr create --title "(feat): ${ISSUE_TITLE}" --body "$(cat <<EOF
