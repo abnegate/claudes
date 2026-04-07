@@ -34,10 +34,12 @@
 # Testing
 
 - There are no "pre-existing issues". If tests fail, fix them, regardless of when you think the issue was introduced.
+- Every bug fix must include a regression test that fails without the fix and passes with it.
 
 # Workflow
 
 - Don't stop mid-implementation to ask if I want to review. Keep going until done. Unnecessary pauses are disruptive.
+- Always parallelise as much as possible using subagents. Every non-overlapping task (file edits, research, code generation, testing, linting, etc.) should run concurrently via separate subagents launched in a single message. Sequential execution of independent work is unacceptable.
 - Never revert PR changes to work around missing dependencies. Add the dependency properly (e.g. as a VCS repository in composer.json).
 - Never use shims or patch files for local dependencies. Edit source in the dependency repo, commit and push, then run the package manager update in the consuming repo.
 - Format and lint before every commit. PHP: `composer lint` (Pint, PSR-12). Kotlin: ktlint. Rust: `cargo fmt` + `cargo clippy -D warnings`. JS/TS: Prettier.
