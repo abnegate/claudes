@@ -79,7 +79,7 @@ Break down into small, incremental phases. Each phase should be:
 
 Incorporate findings from all three exploration agents into the plan.
 
-**Write the plan to `.claude/plans/PLAN-<feature-slug>.md`:**
+**Write the plan to `plans/<feature-slug>.md`:**
 
 ```markdown
 # Implementation Plan: [Feature Name]
@@ -126,7 +126,7 @@ Incorporate findings from all three exploration agents into the plan.
 
 Create the plans directory if needed:
 ```bash
-mkdir -p .claude/plans
+mkdir -p plans
 ```
 
 ## Phase Loop: For Each Implementation Phase
@@ -259,7 +259,7 @@ EOF
 
 ### Step 8: Update Plan File
 
-Update `.claude/plans/PLAN-<feature-slug>.md`:
+Update `plans/PLAN-<feature-slug>.md`:
 
 1. Change phase status from `[ ] Pending` to `[x] Complete`
 2. Add entry to Progress Log:
