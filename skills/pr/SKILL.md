@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Create a pull request with proper description
+description: Commit pending changes, push, and create a pull request with proper description
 argument-hint: "[title]"
 disable-model-invocation: true
 allowed-tools: Bash, Read, Grep
@@ -8,9 +8,59 @@ allowed-tools: Bash, Read, Grep
 
 # Create Pull Request
 
-Create a GitHub pull request with comprehensive description.
+Commit any pending changes in logical groups, push the branch, then create a GitHub pull request with comprehensive description.
 
-## Step 1: Gather Context (Parallel)
+## Step 1: Commit All Pending Changes
+
+Follow the `commit-all` workflow to turn any uncommitted work into logically grouped commits before proceeding.
+
+### Commit Message Format
+
+```
+(<type>): <description>
+```
+- No body
+- No multi-line string
+- No co-authors
+
+### Types
+
+| Type | Use For |
+|------|---------|
+| `feat` | New features |
+| `fix` | Bug fixes |
+| `refactor` | Code restructuring |
+| `docs` | Documentation |
+| `test` | Tests |
+| `chore` | Maintenance |
+| `perf` | Performance |
+| `style` | Formatting |
+
+### Execution
+
+1. Run `git status` to see changes (never use `-uall`)
+2. Run `git diff --staged` and `git diff` to understand changes
+3. Run `git log --oneline -5` to see recent commit style
+4. Determine logical groups of changes in the current diff
+5. For each group:
+   - Stage only the relevant files with `git add <paths>` (never `git add -A` / `.`)
+   - Commit with HEREDOC format:
+     ```bash
+     git commit -m "$(cat <<'EOF'
+     (type): description
+     EOF
+     )"
+     ```
+6. Run `git status` to verify the working tree is clean
+
+### Safety Rules
+
+- NEVER commit `.env` or credential files
+- NEVER use `--amend` unless explicitly requested
+- NEVER skip hooks with `--no-verify`
+- If there are no pending changes, skip straight to Step 2
+
+## Step 2: Gather PR Context (Parallel)
 
 Launch FOUR parallel agents simultaneously to collect all information at once:
 
@@ -18,7 +68,7 @@ Launch FOUR parallel agents simultaneously to collect all information at once:
 ```bash
 git status
 ```
-Capture working tree state, staged files, untracked files.
+Confirm the working tree is clean after Step 1.
 
 **Agent 2 — Commit History**:
 ```bash
@@ -40,40 +90,32 @@ git fetch origin
 ```
 Ensure remote refs are up to date for comparison.
 
-## Step 2: Analyze and Sync (Parallel)
+## Step 3: Analyze and Sync (Parallel)
 
-Once Step 1 completes, launch TWO parallel agents:
+Once Step 2 completes, launch TWO parallel agents:
 
 **Agent 1 — Check Remote Sync**:
 ```bash
 git rev-list --left-right --count origin/main...HEAD
 ```
-Determine if the branch needs pushing and whether it has diverged from origin/main.
+Determine whether the branch has diverged from origin/main.
 
 **Agent 2 — Analyze Changes for PR Description**:
-Using the commit history and diff from Step 1, produce:
+Using the commit history and diff from Step 2, produce:
 - A concise summary (2-4 bullet points) of what changed and why
 - A detailed changes list grouped by area (backend, frontend, tests, config)
 - Appropriate PR title in conventional commit style if `$ARGUMENTS` was not provided
 - Test plan based on what was modified
 
-## Step 3: Push and Create PR (Parallel, then Sequential)
+## Step 4: Push and Create PR
 
-Launch TWO parallel agents:
+Push the branch to remote:
 
-**Agent 1 — Push Branch**:
 ```bash
 git push -u origin $(git branch --show-current)
 ```
-Push the branch to remote (skip if already up to date from Step 2 analysis).
 
-**Agent 2 — Prepare PR Body**:
-Format the final PR body from the analysis in Step 2, incorporating:
-- Summary section
-- Changes section
-- Test plan section
-
-Once both agents complete, create the PR:
+Then create the PR:
 
 ```bash
 gh pr create --title "$TITLE" --body "$(cat <<'EOF'
