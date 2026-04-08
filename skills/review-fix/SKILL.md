@@ -112,15 +112,10 @@ If either verification fails, fix the failures before proceeding.
 
 ### Step 6: Commit Fixes
 
-After all fixes pass verification:
-```bash
-git add -A
-git commit -m "$(cat <<'EOF'
-fix: address code review findings
+After all fixes pass verification, delegate to the `commit` skill:
 
-- [list key fixes made]
-EOF
-)"
+```
+Skill(skill="commit", args="fix: address code review findings")
 ```
 
 ### Step 7: Next Cycle (if cycles > 1)

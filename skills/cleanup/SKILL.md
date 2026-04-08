@@ -197,16 +197,13 @@ Create cleanup report:
 
 ## Commit Strategy
 
-Make atomic commits:
-```bash
-git commit -m "(chore): Remove unused imports"
-git commit -m "(chore): Remove dead code in [module]"
-git commit -m "(chore): Migrate deprecated API usage"
-git commit -m "(chore): Fix technical debt quick wins"
-git commit -m "(chore): Normalize code style"
-git commit -m "(chore): Clean up stale documentation"
-git commit -m "(chore): Fix detekt warnings"
+Delegate to the `commit-all` skill to produce atomic, logically-grouped commits from the cleanup changes:
+
 ```
+Skill(skill="commit-all")
+```
+
+`commit-all` will partition the diff into groups like unused imports, dead code removal, deprecation migration, style normalization, etc. and commit each group with a `(chore): ...` message.
 
 ## Completion Criteria
 

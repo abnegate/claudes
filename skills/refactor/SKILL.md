@@ -169,9 +169,10 @@ Single, focused change:
 
 ### 3.3 Commit
 
-```bash
-git add -A
-git commit -m "(refactor): [specific change made]"
+Delegate to the `commit` skill:
+
+```
+Skill(skill="commit", args="(refactor): [specific change made]")
 ```
 
 ### 3.4 Repeat

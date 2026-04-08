@@ -249,12 +249,10 @@ Run tests again after refactoring.
 
 ### Step 7: Commit Phase
 
-```bash
-git add -A
-git commit -m "$(cat <<'EOF'
-(feat): [phase description]
-EOF
-)"
+Delegate to the `commit` skill with a message that reflects the phase:
+
+```
+Skill(skill="commit", args="(feat): [phase description]")
 ```
 
 ### Step 8: Update Plan File

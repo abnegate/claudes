@@ -12,53 +12,13 @@ Commit any pending changes in logical groups, push the branch, then create a Git
 
 ## Step 1: Commit All Pending Changes
 
-Follow the `commit-all` workflow to turn any uncommitted work into logically grouped commits before proceeding.
-
-### Commit Message Format
+Delegate to the `commit-all` skill to turn any uncommitted work into logically grouped commits:
 
 ```
-(<type>): <description>
+Skill(skill="commit-all")
 ```
-- No body
-- No multi-line string
-- No co-authors
 
-### Types
-
-| Type | Use For |
-|------|---------|
-| `feat` | New features |
-| `fix` | Bug fixes |
-| `refactor` | Code restructuring |
-| `docs` | Documentation |
-| `test` | Tests |
-| `chore` | Maintenance |
-| `perf` | Performance |
-| `style` | Formatting |
-
-### Execution
-
-1. Run `git status` to see changes (never use `-uall`)
-2. Run `git diff --staged` and `git diff` to understand changes
-3. Run `git log --oneline -5` to see recent commit style
-4. Determine logical groups of changes in the current diff
-5. For each group:
-   - Stage only the relevant files with `git add <paths>` (never `git add -A` / `.`)
-   - Commit with HEREDOC format:
-     ```bash
-     git commit -m "$(cat <<'EOF'
-     (type): description
-     EOF
-     )"
-     ```
-6. Run `git status` to verify the working tree is clean
-
-### Safety Rules
-
-- NEVER commit `.env` or credential files
-- NEVER use `--amend` unless explicitly requested
-- NEVER skip hooks with `--no-verify`
-- If there are no pending changes, skip straight to Step 2
+If the working tree is already clean, this is a no-op - proceed directly to Step 2.
 
 ## Step 2: Gather PR Context (Parallel)
 

@@ -117,42 +117,28 @@ Wait for both agents. If either agent found issues:
 - Fix critical review findings
 - Re-run both agents in parallel again until both pass clean
 
-## Phase 4: Commit and Ship (Parallel)
+## Phase 4: Commit and Ship
 
 ### 4.1 Commit
 
-```bash
-git add -A
-git commit -m "$(cat <<'EOF'
-(hotfix): [brief description]
+Delegate to the `commit` skill:
 
-Issue: [what was broken]
-Fix: [what this changes]
-EOF
-)"
+```
+Skill(skill="commit", args="(hotfix): [brief description]")
 ```
 
-### 4.2 Push and Prepare PR (Parallel)
+### 4.2 Open the PR
 
-Launch **two agents in parallel**:
+Delegate to the `pr` skill with a hotfix title:
 
-**Agent A: Push to remote**
 ```
-git push -u origin HEAD
+Skill(skill="pr", args="(hotfix): [description]")
 ```
 
-**Agent B: Prepare PR body**
-Draft the full PR body using context gathered throughout the workflow:
-- The issue description from Phase 0
-- Root cause from Phase 2
-- Fix description from Phase 3
-- Test results from Phase 3
-- Rollback plan
-
-Wait for both agents. Then create the PR:
+The `pr` skill will push the branch and open the PR. After it returns, update the PR body with hotfix-specific context (issue / root cause / fix / rollback) using `gh pr edit`:
 
 ```bash
-gh pr create --title "(hotfix): [description]" --body "$(cat <<EOF
+gh pr edit <pr-number> --body "$(cat <<'EOF'
 ## Emergency Hotfix
 
 ### Issue

@@ -166,14 +166,10 @@ Run the new tests to confirm they pass:
 
 ### 4.2 Commit Fix
 
-```bash
-git add -A
-git commit -m "$(cat <<'EOF'
-(fix): [description of what was fixed]
+Delegate to the `commit` skill:
 
-Root cause: [brief explanation]
-EOF
-)"
+```
+Skill(skill="commit", args="(fix): [description of what was fixed]")
 ```
 
 ## Debug Techniques
