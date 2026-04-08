@@ -45,6 +45,7 @@
 - Format and lint before every commit. PHP: `composer lint` (Pint, PSR-12). Kotlin: ktlint. Rust: `cargo fmt` + `cargo clippy -D warnings`. JS/TS: Prettier.
 - Conventional commits: `(type): subject` — types are `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `style`, `perf`. Focus on "why" not "what".
 - In Appwrite repos, PRs target the current version branch (e.g. `1.9.x`), not `main`. `main` is reserved for release management.
+- Once work is finalised and I confirm it's good, clean up before stopping. Delete dead code, failed attempts, abandoned files, temporary branches, commented-out earlier iterations, `// TODO: remove` markers, debug logging, scratch scripts, and anything else that was only useful during the iteration. Don't leave "loose ends" or "we can migrate this later" notes in the final state — finish them. The last commit of a finished change should be ready to review as if the earlier iterations never happened.
 
 # Projects
 
