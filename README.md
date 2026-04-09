@@ -4,15 +4,29 @@ Personal Claude Code skills and agents for global use across all projects.
 
 ## Setup
 
-Clone this repo and symlink to your Claude config:
+### Option 1: Claude Code plugin (recommended)
+
+Install via the built-in plugin marketplace:
+
+```
+/plugin marketplace add abnegate/claudes
+/plugin install skills@claudes
+```
+
+Skills are namespaced under `skills:`, so they're invoked as `/skills:commit`, `/skills:pr`, etc.
+
+### Option 2: Symlink (local development)
+
+Clone the repo and symlink into your Claude config — useful when iterating on the skills themselves:
 
 ```bash
 git clone git@github.com:abnegate/claudes.git ~/Local/claudes
 
-# Symlink to Claude config
 ln -sf ~/Local/claudes/skills ~/.claude/skills
 ln -sf ~/Local/claudes/agents ~/.claude/agents
 ```
+
+With symlinks, skills are invoked without the namespace prefix (`/commit`, `/pr`, ...).
 
 ## Agents
 

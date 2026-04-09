@@ -1,0 +1,15 @@
+{
+  "name": "claudes",
+  "owner": { "name": "Jake Barnby" },
+  "metadata": {
+    "description": "Personal Claude Code skills and agents for global use across all projects",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "skills",
+      "source": "./",
+      "description": "Skills and agents for git workflow, development, code quality, and reference guides"
+    }
+  ]
+}
