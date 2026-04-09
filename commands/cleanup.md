@@ -1,5 +1,4 @@
 ---
-name: cleanup
 description: Find and remove dead code, unused imports, and technical debt
 argument-hint: "[module|all]"
 ---

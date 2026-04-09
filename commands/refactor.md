@@ -1,9 +1,6 @@
 ---
-name: refactor
 description: Safe refactoring with comprehensive test coverage
 argument-hint: "<what-to-refactor>"
-disable-model-invocation: true
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task
 ---
 
 # Safe Refactoring

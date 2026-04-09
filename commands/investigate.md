@@ -1,9 +1,6 @@
 ---
-name: investigate
 description: Deep investigation of bugs, performance issues, or unexpected behavior
 argument-hint: "<issue-to-investigate>"
-disable-model-invocation: true
-allowed-tools: Bash, Read, Grep, Glob, Task, WebFetch
 ---
 
 # Deep Investigation

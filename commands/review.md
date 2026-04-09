@@ -1,8 +1,5 @@
 ---
-name: review
 description: Thorough code review of current branch against main
-disable-model-invocation: true
-allowed-tools: Bash, Read, Grep, Glob, Task
 ---
 
 # Code Review

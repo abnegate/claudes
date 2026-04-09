@@ -1,5 +1,4 @@
 ---
-name: run
 description: Build, install, and run the app on a target device (auto-detects platform)
 argument-hint: "[--no-install] [--device <target>] [--variant <variant>]"
 ---

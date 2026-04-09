@@ -1,8 +1,6 @@
 ---
-name: cmp
 description: Run docker compose commands
 argument-hint: "<command> [args]"
-disable-model-invocation: false
 allowed-tools: Bash
 ---
 

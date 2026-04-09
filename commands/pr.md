@@ -1,9 +1,6 @@
 ---
-name: pr
 description: Commit pending changes, push, and create a pull request with proper description
 argument-hint: "[title]"
-disable-model-invocation: true
-allowed-tools: Bash, Read, Grep
 ---
 
 # Create Pull Request

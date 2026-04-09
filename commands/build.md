@@ -1,5 +1,4 @@
 ---
-name: build
 description: Build the project (auto-detects build system)
 argument-hint: "[target]"
 ---

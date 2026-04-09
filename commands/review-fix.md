@@ -1,5 +1,4 @@
 ---
-name: review-fix
 description: Review code and fix issues in cycles
 argument-hint: "[cycles=1]"
 ---

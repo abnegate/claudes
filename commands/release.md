@@ -1,8 +1,6 @@
 ---
-name: release
-description: Create a GitHub release with auto-generated changelog. Use this skill whenever the user wants to create a release, tag a release, publish a release, cut a release, or ship a version. Triggers on phrases like "release 1.2.3", "create a release", "tag a new version", "ship it", "cut a release", or any mention of creating GitHub releases.
+description: "Create a GitHub release with auto-generated changelog. Use this skill whenever the user wants to create a release, tag a release, publish a release, cut a release, or ship a version. Triggers on phrases like \"release 1.2.3\", \"create a release\", \"tag a new version\", \"ship it\", \"cut a release\", or any mention of creating GitHub releases."
 argument-hint: "[[version]=auto|1.2.3|major|minor|patch, [branch]=main, [pre-release]=false]"
-disable-model-invocation: true
 ---
 
 # GitHub Release

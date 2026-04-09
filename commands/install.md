@@ -1,5 +1,4 @@
 ---
-name: install
 description: Install the app on a device or emulator (auto-detects platform and build system)
 argument-hint: "[--device <target>] [--variant <variant>]"
 ---

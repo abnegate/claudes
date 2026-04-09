@@ -1,5 +1,4 @@
 ---
-name: implement
 description: Full TDD implementation of a feature with review cycles
 argument-hint: <feature description>
 ---

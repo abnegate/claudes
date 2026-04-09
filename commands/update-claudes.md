@@ -1,8 +1,5 @@
 ---
-name: update-claudes
 description: Pull latest skills/agents and verify symlinks are in sync
-disable-model-invocation: false
-allowed-tools: Bash
 ---
 
 # Update Claudes

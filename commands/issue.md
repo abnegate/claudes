@@ -1,9 +1,6 @@
 ---
-name: issue
 description: Implement a Linear issue end-to-end
 argument-hint: <issue-id>
-disable-model-invocation: true
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task, AskUserQuestion, mcp__linear__*
 ---
 
 # Implement Linear Issue

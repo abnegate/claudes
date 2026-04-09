@@ -1,6 +1,6 @@
 # Claudes
 
-Personal Claude Code skills and agents for global use across all projects.
+Personal Claude Code commands, skills, and agents for global use across all projects.
 
 ## Setup
 
@@ -13,20 +13,21 @@ Install via the built-in plugin marketplace:
 /plugin install skills@claudes
 ```
 
-Skills are namespaced under `skills:`, so they're invoked as `/skills:commit`, `/skills:pr`, etc.
+Slash commands are namespaced under `skills:`, so they're invoked as `/skills:commit`, `/skills:pr`, etc.
 
 ### Option 2: Symlink (local development)
 
-Clone the repo and symlink into your Claude config — useful when iterating on the skills themselves:
+Clone the repo and symlink into your Claude config — useful when iterating on the contents:
 
 ```bash
 git clone git@github.com:abnegate/claudes.git ~/Local/claudes
 
+ln -sf ~/Local/claudes/commands ~/.claude/commands
 ln -sf ~/Local/claudes/skills ~/.claude/skills
 ln -sf ~/Local/claudes/agents ~/.claude/agents
 ```
 
-With symlinks, skills are invoked without the namespace prefix (`/commit`, `/pr`, ...).
+With symlinks, commands are invoked without the namespace prefix (`/commit`, `/pr`, ...).
 
 ## Agents
 
@@ -37,14 +38,14 @@ Custom agents invoked automatically by Claude based on task context.
 | **code-griller** | Opus | Uncompromising code reviewer that catches every issue - bugs, security vulnerabilities, performance bottlenecks, and code smells. Perfect for pre-production reviews and critical components. |
 | **elite-fullstack-architect** | Opus | Rapid full-stack development agent for building complete applications, complex architectures, and performance-critical implementations across any tech stack. |
 
-## Skills
+## Commands
 
-Skills are invoked with `/<skill-name>` in Claude Code.
+User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 
 ### Git & Workflow
 
-| Skill | Usage | Description |
-|-------|-------|-------------|
+| Command | Usage | Description |
+|---------|-------|-------------|
 | **commit** | `/commit [message]` | Create git commit with conventional commit message format |
 | **commit-all** | `/commit-all` | Create git commits in logical groups for all current changes |
 | **pr** | `/pr [title]` | Commit pending changes, push, and create a pull request |
@@ -56,8 +57,8 @@ Skills are invoked with `/<skill-name>` in Claude Code.
 
 ### Development
 
-| Skill | Usage | Description |
-|-------|-------|-------------|
+| Command | Usage | Description |
+|---------|-------|-------------|
 | **build** | `/build [target]` | Build project (auto-detects: Gradle, Maven, Cargo, npm/yarn/pnpm, Go, Make, CMake, Python, Ruby, Elixir, Zig, Deno, Bun, PHP/Composer, Docker) |
 | **install** | `/install [--device <target>] [--variant <variant>]` | Install the app on a device, emulator, or simulator (auto-detects platform) |
 | **run** | `/run [--no-install] [--device <target>] [--variant <variant>]` | Build, install, and launch the app on a target device |
@@ -67,15 +68,24 @@ Skills are invoked with `/<skill-name>` in Claude Code.
 
 ### Code Quality
 
-| Skill | Usage | Description |
-|-------|-------|-------------|
+| Command | Usage | Description |
+|---------|-------|-------------|
 | **review** | `/review` | Thorough code review of current branch against main using code-griller |
 | **review-fix** | `/review-fix [cycles]` | Review code and fix issues in iterative cycles |
 | **cleanup** | `/cleanup [module\|all]` | Find and remove dead code, unused imports, and technical debt |
 | **debug** | `/debug <error>` | Debug and fix failing tests or errors |
 | **investigate** | `/investigate <issue>` | Deep investigation of bugs, performance issues, or unexpected behavior |
 
-### Reference Guides
+### Maintenance
+
+| Command | Usage | Description |
+|---------|-------|-------------|
+| **update-claudes** | `/update-claudes` | Pull latest commands/skills/agents from repo and verify symlinks are in sync |
+| **history** | `/history <query>` | Search Claude Code conversation history on disk for a given query |
+
+## Skills
+
+Reference guides loaded by Claude on demand. These are not user-invocable — Claude consults them when relevant context appears.
 
 | Skill | Description |
 |-------|-------------|
@@ -84,25 +94,18 @@ Skills are invoked with `/<skill-name>` in Claude Code.
 | **frontend-design** | Create distinctive, production-grade UIs that avoid generic AI aesthetics |
 | **react-best-practices** | React hooks, component patterns, state management, performance optimization |
 
-### Maintenance
-
-| Skill | Usage | Description |
-|-------|-------|-------------|
-| **update-claudes** | `/update-claudes` | Pull latest skills/agents from repo and verify symlinks are in sync |
-| **history** | `/history <query>` | Search Claude Code conversation history on disk for a given query |
-
 ## Adding to Projects
 
-To include specific skills in a project's git repo, add as a submodule:
+To include this collection in a project's git repo, add as a submodule:
 
 ```bash
 git submodule add git@github.com:abnegate/claudes.git .claude/claudes
 ```
 
-Or copy specific skills:
+Or copy specific commands:
 
 ```bash
-cp -r ~/Local/claudes/skills/build .claude/skills/
+cp ~/Local/claudes/commands/build.md .claude/commands/
 ```
 
 ## License

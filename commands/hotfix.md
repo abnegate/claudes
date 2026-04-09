@@ -1,5 +1,4 @@
 ---
-name: hotfix
 description: Emergency hotfix workflow for production issues
 argument-hint: "<issue-description>"
 ---
