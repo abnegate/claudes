@@ -32,17 +32,21 @@ Skills are invoked with `/<skill-name>` in Claude Code.
 | Skill | Usage | Description |
 |-------|-------|-------------|
 | **commit** | `/commit [message]` | Create git commit with conventional commit message format |
-| **pr** | `/pr [title]` | Create pull request with proper description |
+| **commit-all** | `/commit-all` | Create git commits in logical groups for all current changes |
+| **pr** | `/pr [title]` | Commit pending changes, push, and create a pull request |
 | **pr-fix** | `/pr-fix <url>` | Fix failing CI checks on a pull request |
 | **issue** | `/issue <issue-id>` | Implement a Linear issue end-to-end |
 | **hotfix** | `/hotfix <description>` | Emergency hotfix workflow for production issues |
+| **release** | `/release [version] [branch] [pre-release]` | Create a GitHub release with auto-generated changelog |
+| **orchestrate** | `/orchestrate <description>` | End-to-end feature workflow — branch, implement, review-fix, PR, wait, pr-fix |
 
 ### Development
 
 | Skill | Usage | Description |
 |-------|-------|-------------|
 | **build** | `/build [target]` | Build project (auto-detects: Gradle, Maven, Cargo, npm/yarn/pnpm, Go, Make, CMake, Python, Ruby, Elixir, Zig, Deno, Bun, PHP/Composer, Docker) |
-| **dev** | `/dev` | Start local development environment with Skaffold |
+| **install** | `/install [--device <target>] [--variant <variant>]` | Install the app on a device, emulator, or simulator (auto-detects platform) |
+| **run** | `/run [--no-install] [--device <target>] [--variant <variant>]` | Build, install, and launch the app on a target device |
 | **cmp** | `/cmp <cmd> [args]` | Run docker compose commands (e.g., `/cmp up -d`, `/cmp logs -f`) |
 | **implement** | `/implement <feature>` | Full TDD implementation of a feature with review cycles |
 | **refactor** | `/refactor <target>` | Safe refactoring with comprehensive test coverage |
@@ -71,6 +75,7 @@ Skills are invoked with `/<skill-name>` in Claude Code.
 | Skill | Usage | Description |
 |-------|-------|-------------|
 | **update-claudes** | `/update-claudes` | Pull latest skills/agents from repo and verify symlinks are in sync |
+| **history** | `/history <query>` | Search Claude Code conversation history on disk for a given query |
 
 ## Adding to Projects
 
