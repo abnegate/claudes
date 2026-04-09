@@ -166,10 +166,10 @@ Single, focused change:
 
 ### 3.3 Commit
 
-Delegate to the `commit` skill:
+Delegate to the `skills:commit` command:
 
 ```
-Skill(skill="commit", args="(refactor): [specific change made]")
+Skill(skill="skills:commit", args="(refactor): [specific change made]")
 ```
 
 ### 3.4 Repeat

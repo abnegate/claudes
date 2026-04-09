@@ -120,21 +120,21 @@ Wait for both agents. If either agent found issues:
 
 ### 4.1 Commit
 
-Delegate to the `commit` skill:
+Delegate to the `skills:commit` command:
 
 ```
-Skill(skill="commit", args="(hotfix): [brief description]")
+Skill(skill="skills:commit", args="(hotfix): [brief description]")
 ```
 
 ### 4.2 Open the PR
 
-Delegate to the `pr` skill with a hotfix title:
+Delegate to the `skills:pr` command with a hotfix title:
 
 ```
-Skill(skill="pr", args="(hotfix): [description]")
+Skill(skill="skills:pr", args="(hotfix): [description]")
 ```
 
-The `pr` skill will push the branch and open the PR. After it returns, update the PR body with hotfix-specific context (issue / root cause / fix / rollback) using `gh pr edit`:
+The `skills:pr` command will push the branch and open the PR. After it returns, update the PR body with hotfix-specific context (issue / root cause / fix / rollback) using `gh pr edit`:
 
 ```bash
 gh pr edit <pr-number> --body "$(cat <<'EOF'

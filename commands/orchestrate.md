@@ -98,25 +98,25 @@ If the working tree is dirty (uncommitted changes), commit them before moving on
 
 ## Step 5: Run review-fix
 
-Invoke the `review-fix` skill with the computed cycle count:
+Invoke the `skills:review-fix` command with the computed cycle count:
 
 ```
-/review-fix $CYCLES
+/skills:review-fix $CYCLES
 ```
 
 Use the Skill tool:
 ```
-Skill(skill="review-fix", args="$CYCLES")
+Skill(skill="skills:review-fix", args="$CYCLES")
 ```
 
 Wait for it to complete. It will create additional commits on the current branch.
 
 ## Step 6: Run pr
 
-Invoke the `pr` skill to commit anything still pending, push, and open the PR:
+Invoke the `skills:pr` command to commit anything still pending, push, and open the PR:
 
 ```
-Skill(skill="pr")
+Skill(skill="skills:pr")
 ```
 
 **Capture the PR URL from the skill's output.** Store it as `PR_URL`. If the skill output does not include a URL, run `gh pr view --json url -q .url` on the current branch to fetch it.
@@ -135,10 +135,10 @@ While waiting, you may summarize progress to the user, but do not start new work
 
 ## Step 8: Run pr-fix
 
-Invoke the `pr-fix` skill with the captured PR URL and both flags enabled:
+Invoke the `skills:pr-fix` command with the captured PR URL and both flags enabled:
 
 ```
-Skill(skill="pr-fix", args="$PR_URL checks=true comments=true")
+Skill(skill="skills:pr-fix", args="$PR_URL checks=true comments=true")
 ```
 
 This will iterate on failing checks and address any review comments already posted.

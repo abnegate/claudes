@@ -196,13 +196,13 @@ Create cleanup report:
 
 ## Commit Strategy
 
-Delegate to the `commit-all` skill to produce atomic, logically-grouped commits from the cleanup changes:
+Delegate to the `skills:commit-all` command to produce atomic, logically-grouped commits from the cleanup changes:
 
 ```
-Skill(skill="commit-all")
+Skill(skill="skills:commit-all")
 ```
 
-`commit-all` will partition the diff into groups like unused imports, dead code removal, deprecation migration, style normalization, etc. and commit each group with a `(chore): ...` message.
+`skills:commit-all` will partition the diff into groups like unused imports, dead code removal, deprecation migration, style normalization, etc. and commit each group with a `(chore): ...` message.
 
 ## Completion Criteria
 

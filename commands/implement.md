@@ -248,10 +248,10 @@ Run tests again after refactoring.
 
 ### Step 7: Commit Phase
 
-Delegate to the `commit` skill with a message that reflects the phase:
+Delegate to the `skills:commit` command with a message that reflects the phase:
 
 ```
-Skill(skill="commit", args="(feat): [phase description]")
+Skill(skill="skills:commit", args="(feat): [phase description]")
 ```
 
 ### Step 8: Update Plan File

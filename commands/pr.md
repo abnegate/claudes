@@ -9,10 +9,10 @@ Commit any pending changes in logical groups, push the branch, then create a Git
 
 ## Step 1: Commit All Pending Changes
 
-Delegate to the `commit-all` skill to turn any uncommitted work into logically grouped commits:
+Delegate to the `skills:commit-all` command to turn any uncommitted work into logically grouped commits:
 
 ```
-Skill(skill="commit-all")
+Skill(skill="skills:commit-all")
 ```
 
 If the working tree is already clean, this is a no-op - proceed directly to Step 2.

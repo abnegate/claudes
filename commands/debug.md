@@ -165,10 +165,10 @@ Run the new tests to confirm they pass:
 
 ### 4.2 Commit Fix
 
-Delegate to the `commit` skill:
+Delegate to the `skills:commit` command:
 
 ```
-Skill(skill="commit", args="(fix): [description of what was fixed]")
+Skill(skill="skills:commit", args="(fix): [description of what was fixed]")
 ```
 
 ## Debug Techniques

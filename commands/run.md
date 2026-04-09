@@ -16,7 +16,7 @@ Parse `$ARGUMENTS` for named flags:
   - **iOS**: `simulator`, `physical`, or a device UDID
   - **Web**: `chrome`, `firefox`, `safari`, `edge`
   - **Flutter**: any `flutter devices` id
-- `--variant <variant>` — Build variant (e.g. `debug`, `release`, `demo`). Defaults to `debug`. Passed through to `/install`.
+- `--variant <variant>` — Build variant (e.g. `debug`, `release`, `demo`). Defaults to `debug`. Passed through to `/skills:install`.
 
 ## Platform Detection (Parallel)
 
@@ -38,7 +38,7 @@ Check for: `pubspec.yaml` (Flutter), `build.gradle.kts` with `kotlin("multiplatf
 
 ### 1. Install (unless `--no-install`)
 
-Run the `/install` skill with the resolved device target. This handles build + install.
+Run the `/skills:install` command with the resolved device target. This handles build + install.
 
 ### 2. Resolve Device
 
@@ -111,8 +111,8 @@ Confirm the app is running with:
 
 ## Error Handling
 
-- **App not installed**: Run `/install` even if `--no-install` was passed, then retry launch
+- **App not installed**: Run `/skills:install` even if `--no-install` was passed, then retry launch
 - **Activity not found**: Re-detect from manifest, try alternate activity names
 - **Device offline**: Report and suggest reconnecting
 - **Port in use (web)**: Find the process on the port, report to user, suggest killing or using alternate port
-- **Build failure**: Delegate to `/build` skill for diagnosis and fixing
+- **Build failure**: Delegate to `/skills:build` command for diagnosis and fixing

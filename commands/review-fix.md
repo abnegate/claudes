@@ -111,10 +111,10 @@ If either verification fails, fix the failures before proceeding.
 
 ### Step 6: Commit Fixes
 
-After all fixes pass verification, delegate to the `commit` skill:
+After all fixes pass verification, delegate to the `skills:commit` command:
 
 ```
-Skill(skill="commit", args="fix: address code review findings")
+Skill(skill="skills:commit", args="fix: address code review findings")
 ```
 
 ### Step 7: Next Cycle (if cycles > 1)

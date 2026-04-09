@@ -74,4 +74,4 @@ If installation fails:
 - **Android "INSTALL_FAILED_UPDATE_INCOMPATIBLE"**: Run `adb uninstall <package>` then retry
 - **Android no device**: Check `adb devices`, suggest starting emulator
 - **iOS signing error**: Report and suggest checking signing configuration
-- **Build failure**: Fall back to the `/build` skill, fix errors, then retry install
+- **Build failure**: Fall back to the `/skills:build` command, fix errors, then retry install

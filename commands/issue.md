@@ -80,7 +80,7 @@ Once all exploration agents complete, synthesize findings into the implementatio
 
 ## Phase 2: Execute Plan
 
-Delegate to `/implement` workflow which handles its own parallelization:
+Delegate to `/skills:implement` workflow which handles its own parallelization:
 - TDD for each phase
 - Code review with code-griller
 - Fix all issues

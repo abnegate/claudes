@@ -88,10 +88,10 @@ Rules for parallelization:
 
 #### 3c. Commit and Push
 
-After all fix agents complete, delegate to the `commit` skill with a descriptive message, then push:
+After all fix agents complete, delegate to the `skills:commit` command with a descriptive message, then push:
 
 ```
-Skill(skill="commit", args="fix: <description of what was fixed>")
+Skill(skill="skills:commit", args="fix: <description of what was fixed>")
 ```
 
 ```bash
@@ -134,10 +134,10 @@ Rules for parallelization:
 
 #### 4c. Commit and Push
 
-Delegate to the `commit` skill, then push:
+Delegate to the `skills:commit` command, then push:
 
 ```
-Skill(skill="commit", args="fix: address review comments")
+Skill(skill="skills:commit", args="fix: address review comments")
 ```
 
 ```bash
