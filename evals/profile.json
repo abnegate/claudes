@@ -1,0 +1,35 @@
+{
+  "skill_name": "profile",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "what have i been working on lately",
+      "expected_output": "A comprehensive breakdown of recent git activity and Claude usage with insights about focus areas, patterns, and trends",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "show me my commit stats for the last 3 months as a csv",
+      "expected_output": "A CSV table with repos as columns, weeks as rows, and commit counts as values",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "am I more productive on weekdays or weekends? what time do I usually code?",
+      "expected_output": "Analysis of weekday vs weekend patterns, time-of-day distribution, and identification of peak coding hours from both git and Claude session data",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "how much am I using Claude? which tools and models do I use most?",
+      "expected_output": "Claude session summary with cost, model breakdown, tool usage ranking, skills used, and per-project AI assistance patterns",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "show me my developer profile",
+      "expected_output": "Full developer profile combining git activity and Claude usage with cross-referenced insights about coding patterns, AI assistance, and workflow habits",
+      "files": []
+    }
+  ]
+}

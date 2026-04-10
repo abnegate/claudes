@@ -1,81 +1,127 @@
 ---
-name: insights
-description: Analyze git commit activity across all repos in a directory. Generates comprehensive stats (commit counts, time-of-day patterns, velocity, streaks, commit types, top keywords) and surfaces highlights and insights. Use this skill whenever the user asks about their git activity, commit history, coding patterns, productivity stats, repo breakdown, or weekly/monthly commit summaries — even if they just say something like "what have I been working on" or "show me my stats".
+name: profile
+description: Build a comprehensive developer profile from git activity and Claude Code session history. Covers commit patterns, velocity, streaks, time-of-day habits, repo focus, tool usage, AI spend, model preferences, and session themes. Use whenever the user asks about their stats, coding patterns, what they've been working on, their Claude usage, or anything related to their developer profile.
 ---
 
-# Repo Stats
+# Developer Profile
 
-Analyze git commit activity across all local repos and present insights about coding patterns, velocity, and focus areas.
+Build a comprehensive developer profile by combining git commit activity with Claude Code session data. The result paints a full picture: what you build, when you build it, how you use AI assistance, and where your focus goes.
 
 ## How it works
 
-There is a data collection script at `scripts/collect.py` (relative to this skill file) that scans all git repos under a base directory, extracts commit metadata, and outputs a JSON payload with aggregated stats. Run the script, then interpret the results and present highlights.
+A collection script at `scripts/collect.py` in the plugin/repo root scans git repos for commit metadata and reads Claude Code session files from `~/.claude/sessions/`. It outputs a single JSON payload with two top-level sections: `git` and `claude`.
 
 ## Step 1: Collect the data
 
-Run the collection script. The base directory defaults to `~/Local/` unless the user specifies otherwise. The script auto-detects the git author and defaults to the last 90 days.
+Locate the script. It lives at `scripts/collect.py` relative to the plugin root (sibling to `commands/`). If the path isn't obvious, use Glob with `**/scripts/collect.py` under `~/.claude/plugins/cache/claudes/` or the repo checkout to find it.
+
+Run it. The base directory defaults to `~/Local/` unless the user specifies otherwise. The script auto-detects the git author and defaults to the last 90 days.
 
 ```bash
-python3 <skill-dir>/scripts/collect.py ~/Local/ --format json
+python3 <plugin-root>/scripts/collect.py ~/Local/ --format json
 ```
 
 Override if the user asks for a different time range or author:
 
 ```bash
-python3 <skill-dir>/scripts/collect.py ~/Local/ --since 2025-01-01 --author "Someone Else"
+python3 <plugin-root>/scripts/collect.py ~/Local/ --since 2025-01-01 --author "Someone Else"
 ```
 
 ## Step 2: Interpret and present
 
-The JSON output contains these sections — use all of them to build a complete picture:
+The JSON output has two top-level keys: `git` and `claude`. Use **both** to build a unified profile. Cross-reference them — the most interesting insights come from correlating the two (e.g., "You use Claude most heavily on the repos where you commit the most fixes" or "Your Claude sessions peak at 22:00, exactly when your commit volume spikes").
 
-### Summary section
+### Git section (`git`)
+
+#### Summary
 - Total commits, active repos, date range, commits per day
 - Weekend vs weekday split — surface this if skewed
 - Busiest single day — call it out with context
 
-### Streaks
-- Current streak and longest streak — people love streak data
+#### Streaks
+- Current streak and longest streak
 - If the current streak is strong, celebrate it. If it broke recently, note when.
 
-### Repo breakdown (`by_repo`)
+#### Repo breakdown (`by_repo`)
 - Rank by commit volume. Group into tiers: heavy focus, moderate, light touch.
-- Call out any repos that appeared suddenly (new projects) or went silent.
+- Call out repos that appeared suddenly (new projects) or went silent.
 
-### Weekly/monthly trends (`by_week`, `by_month`)
+#### Weekly/monthly trends (`by_week`, `by_month`)
 - Spot acceleration or deceleration. Which weeks were peak output?
-- Correlate spikes with specific repos if possible using `by_repo_week`.
+- Correlate spikes with specific repos using `by_repo_week`.
 
-### Time-of-day patterns (`by_hour`, `by_time_bucket`)
-- When is the user most productive? Early bird or night owl?
-- Are there distinct work sessions (e.g., morning burst, evening push)?
+#### Time-of-day patterns (`by_hour`, `by_time_bucket`)
+- Early bird or night owl?
+- Distinct work sessions (morning burst, evening push)?
 - Use `by_repo_hour` to see if different repos get worked on at different times.
 
-### Day-of-week patterns (`by_day_of_week`)
-- Which days are heaviest? Does the user work weekends?
-- Any surprising gaps (e.g., zero commits on a weekday)?
+#### Day-of-week patterns (`by_day_of_week`)
+- Which days are heaviest? Weekend work?
+- Surprising gaps?
 
-### Commit types (`by_type`)
-- What kind of work dominates: features, fixes, refactors, chores?
+#### Commit types (`by_type`)
+- Features vs fixes vs refactors vs chores?
 - Use `by_repo_type` to show how work type varies by project.
 
-### Vocabulary (`top_words`)
-- What themes emerge from commit messages? Domain-specific terms reveal focus areas.
+#### Vocabulary (`top_words`)
+- Domain themes from commit messages.
 
-### Repo context (`repo_context`)
-Each active repo includes qualitative context that adds depth beyond the numbers:
-- **branch**: The current branch name. Branch names often reveal what's actively being worked on (e.g., `feat-dedicated-db`, `fix-multi-vcs-deploy`). Group repos by shared branch names to surface cross-repo features.
-- **recent_subjects**: The last 20 commit subjects. Skim these to identify themes and summarize what each repo has been focused on in plain language (e.g., "database adapter refactoring and backup/restore work" rather than listing commit messages).
-- **uncommitted**: Any modified, added, or untracked files. This shows work-in-progress that hasn't been committed yet. Call out notable uncommitted work — it hints at what the user is actively touching right now.
+#### Repo context (`repo_context`)
+- **branch**: Current branch name — reveals active work.
+- **recent_subjects**: Last 20 commit subjects — summarize themes in plain language.
+- **uncommitted**: Modified/untracked files — hints at active WIP.
 
-Use this context to add a "What's happening in each repo" section that goes beyond commit counts and explains the actual work.
+### Claude section (`claude`)
+
+#### Summary
+- Total sessions, total cost, average cost per session
+- Total turns, average turns per session
+- Total tool calls, average tools per session
+- Active days and sessions per active day
+
+#### Duration (`duration`)
+- Median, average, and max session length in minutes
+- Total hours spent in Claude Code
+
+#### Models (`models`)
+- Which models are used and how often. Is the user an Opus user, a Sonnet user, or do they switch based on context?
+
+#### Tool usage (`tools`)
+- Ranked tool counts. Which tools dominate (Bash, Read, Edit, Grep, Glob, Agent, etc.)?
+- High Bash usage suggests scripting-heavy workflows; high Agent usage suggests delegation patterns; high Edit vs Write suggests iterative refinement.
+
+#### Skills (`skills`)
+- Which slash commands / skills are invoked. Shows workflow preferences.
+
+#### By project (`by_project`)
+- Sessions, cost, turns, and tool calls per project.
+- Cross-reference with git `by_repo` — which repos get the most AI assistance relative to their commit volume? A repo with many commits but few Claude sessions is "manual" work; one with few commits but many sessions is "AI-assisted" or exploratory.
+
+#### By project hour (`by_project_hour`)
+- Do different projects get Claude help at different times?
+
+#### Hourly / daily / weekly patterns (`by_hour`, `by_day_of_week`, `by_week`)
+- Compare with git patterns. Do Claude sessions happen at the same hours as commits, or different?
+- Claude-heavy weeks vs commit-heavy weeks — do they correlate or alternate?
+
+#### Cost trends (`cost_by_week`)
+- Spending trajectory. Increasing, stable, or decreasing?
+- Correlate spikes with specific projects or high-commit weeks.
+
+#### Session vocabulary (`top_session_words`)
+- What themes emerge from session titles? Domain terms, action words.
+- Compare with git commit vocabulary — are the same themes present, or does Claude get used for different work than what gets committed?
 
 ## Presentation guidelines
 
-Lead with 3-5 bold headline insights — the things that would surprise or interest the user most. Not generic stats, but patterns: "You're a night owl on plotpals but a morning person on appwrite" or "Your commit velocity doubled after W11".
+Lead with 3-5 bold headline insights. The best insights **cross-reference** git and Claude data:
+- "You spent $X on Claude this month, mostly on [project] — which is also your highest-commit repo"
+- "Your Claude sessions peak at 1am but your commits peak at 10pm — you research late, commit earlier"
+- "You use Opus for [project] but Sonnet for [project] — the complex backend gets the big model"
+- "[Project] has 3x more Claude sessions per commit than any other repo — heavy AI assistance there"
 
-After the headlines, present the detailed breakdown. Use tables for the repo-by-week grid and commit type distributions. Use plain language for trend analysis.
+After the headlines, present two detailed sections (Git Activity, Claude Usage) with tables and plain language analysis. Then a combined "Cross-reference" section that ties the two together.
 
-If the user asks for CSV output, run the script with `--format csv` instead and output the raw CSV.
+If the user asks for CSV output, run the script with `--format csv` instead — this outputs the git repo-weekly grid only.
 
-Keep it concrete. Reference specific repos, weeks, and numbers. Avoid filler like "you've been busy!" — let the data speak.
+Keep it concrete. Reference specific repos, weeks, numbers, and dollar amounts. Avoid filler.

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Collect comprehensive git commit data across all repos in a directory.
+Collect comprehensive developer profile data from git repos and Claude Code sessions.
 
 Usage: python collect.py <base_dir> [--author <name>] [--since <date>] [--format csv|json]
 
-Outputs JSON (default) or CSV with rich commit metadata for analysis.
+Outputs JSON (default) or CSV with rich commit metadata and Claude usage data.
 """
 
 import argparse
+import glob as globmod
 import json
 import os
+import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -88,7 +90,6 @@ def collect_repo_context(repo_path):
     """Collect qualitative context: branch, recent subjects, uncommitted work."""
     context = {}
 
-    # Current branch
     try:
         branch = subprocess.check_output(
             ['git', '-C', repo_path, 'rev-parse', '--abbrev-ref', 'HEAD'],
@@ -98,7 +99,6 @@ def collect_repo_context(repo_path):
     except subprocess.CalledProcessError:
         context['branch'] = None
 
-    # Uncommitted changes (staged + unstaged + untracked)
     try:
         status = subprocess.check_output(
             ['git', '-C', repo_path, 'status', '--porcelain'],
@@ -119,7 +119,6 @@ def collect_repo_context(repo_path):
     except subprocess.CalledProcessError:
         pass
 
-    # Recent commit subjects (last 20, all authors) for theme extraction
     try:
         output = subprocess.check_output(
             ['git', '-C', repo_path, 'log', '-20', '--format=%s', '--all'],
@@ -143,7 +142,6 @@ def classify_commit(subject):
     for prefix in prefixes:
         if lower.startswith(prefix + ':') or lower.startswith(prefix + '('):
             return prefix
-    # Heuristic fallback
     if lower.startswith('merge'):
         return 'merge'
     if lower.startswith('add') or lower.startswith('implement') or lower.startswith('create'):
@@ -197,6 +195,233 @@ def compute_streaks(dates):
     }
 
 
+def collect_claude_sessions(since_date):
+    """Collect Claude Code session metadata from ~/.claude/sessions/."""
+    sessions_dir = Path.home() / '.claude' / 'sessions'
+    if not sessions_dir.exists():
+        return []
+
+    since_dt = datetime.fromisoformat(since_date) if isinstance(since_date, str) else since_date
+    sessions = []
+
+    for path in sessions_dir.glob('*.json'):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        metadata = data.get('metadata', {})
+        messages = data.get('messages', [])
+
+        created = metadata.get('createdAt')
+        if not created:
+            continue
+
+        try:
+            created_dt = datetime.fromisoformat(created.replace('Z', '+00:00')).replace(tzinfo=None)
+        except (ValueError, AttributeError):
+            continue
+
+        if created_dt < since_dt:
+            continue
+
+        tool_calls = []
+        assistant_tokens = 0
+        user_messages = 0
+        assistant_messages = 0
+        skills_used = []
+
+        for message in messages:
+            role = message.get('role', '')
+            if role == 'user':
+                user_messages += 1
+            elif role == 'assistant':
+                assistant_messages += 1
+
+            content = message.get('content', [])
+            if isinstance(content, str):
+                continue
+            for block in content:
+                if not isinstance(block, dict):
+                    continue
+                if block.get('type') == 'tool_use':
+                    tool_name = block.get('name', '')
+                    tool_calls.append(tool_name)
+                    if tool_name == 'Skill':
+                        skill = block.get('input', {}).get('skill', '')
+                        if skill:
+                            skills_used.append(skill)
+
+        # Extract project from cwd
+        cwd = metadata.get('cwd', '')
+        project = os.path.basename(cwd) if cwd else ''
+
+        updated = metadata.get('updatedAt')
+        duration_minutes = None
+        if created and updated:
+            try:
+                updated_dt = datetime.fromisoformat(updated.replace('Z', '+00:00')).replace(tzinfo=None)
+                duration_minutes = round((updated_dt - created_dt).total_seconds() / 60, 1)
+            except (ValueError, AttributeError):
+                pass
+
+        sessions.append({
+            'id': metadata.get('id', path.stem),
+            'created': created,
+            'date': created_dt.strftime('%Y-%m-%d'),
+            'hour': created_dt.hour,
+            'weekday': created_dt.strftime('%A'),
+            'week': created_dt.strftime('%Y-W%V'),
+            'month': created_dt.strftime('%Y-%m'),
+            'model': metadata.get('model', 'unknown'),
+            'cost': metadata.get('totalCostUsd', 0) or 0,
+            'turns': metadata.get('turnCount', 0) or 0,
+            'user_messages': user_messages,
+            'assistant_messages': assistant_messages,
+            'tool_calls': tool_calls,
+            'tool_count': len(tool_calls),
+            'skills_used': skills_used,
+            'project': project,
+            'title': metadata.get('title', ''),
+            'duration_minutes': duration_minutes,
+        })
+
+    return sorted(sessions, key=lambda s: s['created'])
+
+
+def analyze_claude_sessions(sessions):
+    """Produce aggregate analysis from Claude session data."""
+    if not sessions:
+        return None
+
+    total = len(sessions)
+    total_cost = sum(s['cost'] for s in sessions)
+    total_turns = sum(s['turns'] for s in sessions)
+    total_tools = sum(s['tool_count'] for s in sessions)
+
+    dates = [s['date'] for s in sessions]
+    min_date = min(dates)
+    max_date = max(dates)
+    unique_days = len(set(dates))
+
+    # Tool usage across all sessions
+    all_tools = []
+    for s in sessions:
+        all_tools.extend(s['tool_calls'])
+    tool_counts = dict(Counter(all_tools).most_common(30))
+
+    # Skills used
+    all_skills = []
+    for s in sessions:
+        all_skills.extend(s['skills_used'])
+    skill_counts = dict(Counter(all_skills).most_common(20))
+
+    # Model usage
+    model_counts = dict(Counter(s['model'] for s in sessions).most_common())
+
+    # Per-project breakdown
+    project_counts = Counter(s['project'] for s in sessions if s['project'])
+    project_stats = {}
+    for project, count in project_counts.most_common():
+        project_sessions = [s for s in sessions if s['project'] == project]
+        project_stats[project] = {
+            'sessions': count,
+            'cost': round(sum(s['cost'] for s in project_sessions), 4),
+            'turns': sum(s['turns'] for s in project_sessions),
+            'tools': sum(s['tool_count'] for s in project_sessions),
+        }
+
+    # Hourly distribution
+    hourly = Counter(s['hour'] for s in sessions)
+    hourly_full = {h: hourly.get(h, 0) for h in range(24)}
+
+    # Day of week
+    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    daily = Counter(s['weekday'] for s in sessions)
+    daily_sorted = {d: daily.get(d, 0) for d in day_order}
+
+    # Weekly trend
+    weekly = Counter(s['week'] for s in sessions)
+    weekly_sorted = dict(sorted(weekly.items()))
+
+    # Monthly trend
+    monthly = Counter(s['month'] for s in sessions)
+    monthly_sorted = dict(sorted(monthly.items()))
+
+    # Daily session counts
+    daily_counts = Counter(dates)
+    daily_sorted_counts = dict(sorted(daily_counts.items()))
+
+    # Sessions with durations
+    durations = [s['duration_minutes'] for s in sessions if s['duration_minutes'] is not None and s['duration_minutes'] > 0]
+    duration_stats = None
+    if durations:
+        durations_sorted = sorted(durations)
+        duration_stats = {
+            'median_minutes': round(durations_sorted[len(durations_sorted) // 2], 1),
+            'average_minutes': round(sum(durations) / len(durations), 1),
+            'max_minutes': round(max(durations), 1),
+            'total_hours': round(sum(durations) / 60, 1),
+        }
+
+    # Cost by week
+    cost_by_week = defaultdict(float)
+    for s in sessions:
+        cost_by_week[s['week']] += s['cost']
+    cost_by_week = {k: round(v, 4) for k, v in sorted(cost_by_week.items())}
+
+    # Per-project hourly patterns
+    project_hours = {}
+    for project in list(project_counts.keys())[:10]:
+        project_sessions = [s for s in sessions if s['project'] == project]
+        project_hours[project] = dict(Counter(s['hour'] for s in project_sessions))
+
+    # Title/theme extraction from session titles
+    title_words = Counter()
+    stop_words = {
+        'the', 'a', 'an', 'and', 'or', 'to', 'in', 'for', 'of', 'on',
+        'with', 'is', 'it', 'from', 'by', 'at', 'as', 'this', 'that',
+        'me', 'my', 'i', 'can', 'you', 'how', 'what', 'we', 'do', 'not',
+        'all', 'but', 'so', 'if', 'be', 'are', 'was', 'has', 'have',
+    }
+    for s in sessions:
+        title = s.get('title', '')
+        if title:
+            for word in re.split(r'[\s/\\.,;:!?()\[\]{}"\'-]+', title.lower()):
+                if len(word) > 2 and word not in stop_words:
+                    title_words[word] += 1
+    top_session_words = dict(title_words.most_common(30))
+
+    return {
+        'summary': {
+            'total_sessions': total,
+            'total_cost_usd': round(total_cost, 2),
+            'average_cost_per_session': round(total_cost / total, 4) if total else 0,
+            'total_turns': total_turns,
+            'average_turns_per_session': round(total_turns / total, 1) if total else 0,
+            'total_tool_calls': total_tools,
+            'average_tools_per_session': round(total_tools / total, 1) if total else 0,
+            'date_range': f'{min_date} to {max_date}',
+            'unique_active_days': unique_days,
+            'sessions_per_active_day': round(total / unique_days, 1) if unique_days else 0,
+        },
+        'duration': duration_stats,
+        'models': model_counts,
+        'tools': tool_counts,
+        'skills': skill_counts,
+        'by_project': project_stats,
+        'by_project_hour': project_hours,
+        'by_hour': hourly_full,
+        'by_day_of_week': daily_sorted,
+        'by_week': weekly_sorted,
+        'by_month': monthly_sorted,
+        'cost_by_week': cost_by_week,
+        'daily_counts': daily_sorted_counts,
+        'top_session_words': top_session_words,
+    }
+
+
 def analyze(all_commits, repos_data):
     """Produce aggregate analysis from collected commits."""
     if not all_commits:
@@ -209,28 +434,22 @@ def analyze(all_commits, repos_data):
     unique_days = len(set(dates))
     date_range_days = (datetime.strptime(max_date, '%Y-%m-%d') - datetime.strptime(min_date, '%Y-%m-%d')).days + 1
 
-    # Per-repo counts
     repo_totals = {repo: len(commits) for repo, commits in repos_data.items() if commits}
     repo_totals = dict(sorted(repo_totals.items(), key=lambda x: -x[1]))
 
-    # Weekly totals
     weekly = Counter(c['week'] for c in all_commits)
     weekly_sorted = dict(sorted(weekly.items()))
 
-    # Monthly totals
     monthly = Counter(c['month'] for c in all_commits)
     monthly_sorted = dict(sorted(monthly.items()))
 
-    # Hour distribution
     hourly = Counter(c['hour'] for c in all_commits)
     hourly_full = {h: hourly.get(h, 0) for h in range(24)}
 
-    # Day of week distribution
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     daily = Counter(c['weekday'] for c in all_commits)
     daily_sorted = {d: daily.get(d, 0) for d in day_order}
 
-    # Time buckets
     def time_bucket(hour):
         if 5 <= hour < 9:
             return 'early_morning'
@@ -246,37 +465,29 @@ def analyze(all_commits, repos_data):
 
     buckets = Counter(time_bucket(c['hour']) for c in all_commits)
 
-    # Commit types
     types = Counter(classify_commit(c['subject']) for c in all_commits)
     types_sorted = dict(sorted(types.items(), key=lambda x: -x[1]))
 
-    # Per-repo weekly breakdown (for CSV)
     repo_weekly = {}
     for repo, commits in repos_data.items():
         if commits:
             repo_weekly[repo] = dict(Counter(c['week'] for c in commits))
 
-    # Streaks
     streaks = compute_streaks(dates)
 
-    # Daily commit counts for velocity
     daily_counts = Counter(dates)
     daily_counts_sorted = dict(sorted(daily_counts.items()))
 
-    # Commits per active day
     per_active_day = round(total / unique_days, 1) if unique_days else 0
 
-    # Weekend vs weekday
     weekend = sum(1 for c in all_commits if c['weekday'] in ('Saturday', 'Sunday'))
     weekday = total - weekend
 
-    # Per-repo per-hour (to find repo-specific patterns)
     repo_hours = {}
     for repo, commits in repos_data.items():
         if commits:
             repo_hours[repo] = dict(Counter(c['hour'] for c in commits))
 
-    # Most common commit words (excluding stop words)
     stop_words = {'the', 'a', 'an', 'and', 'or', 'to', 'in', 'for', 'of', 'on', 'with', 'is', 'it', 'from', 'by', 'at', 'as', 'this', 'that'}
     words = Counter()
     for c in all_commits:
@@ -286,10 +497,8 @@ def analyze(all_commits, repos_data):
                 words[clean] += 1
     top_words = dict(words.most_common(30))
 
-    # Busiest single day
     busiest_day = max(daily_counts.items(), key=lambda x: x[1])
 
-    # Per-repo commit types
     repo_types = {}
     for repo, commits in repos_data.items():
         if commits:
@@ -345,7 +554,7 @@ def to_csv(analysis):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Collect git commit stats across repos')
+    parser = argparse.ArgumentParser(description='Collect developer profile data from git repos and Claude sessions')
     parser.add_argument('base_dir', help='Base directory containing git repos')
     parser.add_argument('--author', help='Git author name (auto-detected if omitted)')
     parser.add_argument('--since', help='Start date (ISO format, default: 3 months ago)')
@@ -378,13 +587,23 @@ def main():
             all_commits.extend(commits)
             repos_context[repo_name] = collect_repo_context(repo_path)
 
-    analysis = analyze(all_commits, repos_data)
-    analysis['repo_context'] = repos_context
+    result = {}
+
+    # Git analysis
+    git_analysis = analyze(all_commits, repos_data)
+    git_analysis['repo_context'] = repos_context
+    result['git'] = git_analysis
+
+    # Claude session analysis
+    claude_sessions = collect_claude_sessions(args.since)
+    claude_analysis = analyze_claude_sessions(claude_sessions)
+    if claude_analysis:
+        result['claude'] = claude_analysis
 
     if args.format == 'csv':
-        print(to_csv(analysis))
+        print(to_csv(git_analysis))
     else:
-        print(json.dumps(analysis, indent=2))
+        print(json.dumps(result, indent=2))
 
 
 if __name__ == '__main__':
