@@ -1,7 +1,7 @@
 {
   "name": "skills",
   "description": "Personal Claude Code skills and agents for global use across all projects",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "author": { "name": "Jake Barnby" },
   "homepage": "https://github.com/abnegate/claudes",
   "repository": "https://github.com/abnegate/claudes",
