@@ -50,9 +50,9 @@ Search through Claude Code conversation history JSONL files for the given query.
 ## Arguments
 
 The user's search query is passed as the skill argument. For example:
-- `/history dependabot` — search for dependabot-related discussions
-- `/history billing UI revert` — search for when billing UI was reverted
-- `/history "libs.versions.toml"` — search for dependency version discussions
+- `/history? dependabot` — search for dependabot-related discussions
+- `/history? billing UI revert` — search for when billing UI was reverted
+- `/history? "libs.versions.toml"` — search for dependency version discussions
 
 ## Tips
 
