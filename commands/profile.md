@@ -74,7 +74,7 @@ The JSON output has two top-level keys: `git` and `claude`. Use **both** to buil
 ### Claude section (`claude`)
 
 #### Summary
-- Total sessions, total cost, average cost per session
+- Total sessions, **estimated cost** (pay-as-you-go rates, not actual spend on flat-rate plans — note this when presenting)
 - Total turns, average turns per session
 - Total tool calls, average tools per session
 - Active days and sessions per active day
@@ -83,8 +83,19 @@ The JSON output has two top-level keys: `git` and `claude`. Use **both** to buil
 - Median, average, and max session length in minutes
 - Total hours spent in Claude Code
 
+#### Data sources (`data_sources`)
+Each session is tagged with how its data survived:
+- **main+subagent** — both parent session file and subagent data present (recent sessions)
+- **main-only** — only the parent session file
+- **subagent-only** — parent was cleaned up by Claude Code's retention, only subagent data survived
+
+A high `subagent-only` count for older periods (Jan–Feb 2026 and earlier) is **expected** — Claude Code silently cleans up older `projects/*.jsonl` files but leaves `subagents/` subdirs alone. For periods before the subagent feature started persisting (~Jan 9, 2026), neither survives, which is why you may see gaps in Nov–Dec 2025 even though `history.jsonl` has entries for that range.
+
+If the user asks about gaps in the timeline, explain this cleanup behavior. Don't pretend the gap is because they weren't using Claude — they were, the data just got purged.
+
 #### Models (`models`)
 - Which models are used and how often. Is the user an Opus user, a Sonnet user, or do they switch based on context?
+- `<synthetic>` entries are Claude Code's internal messages (hooks, system events) — not real API calls. Note their share but don't attribute cost to them.
 
 #### Tool usage (`tools`)
 - Ranked tool counts. Which tools dominate (Bash, Read, Edit, Grep, Glob, Agent, etc.)?

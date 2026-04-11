@@ -195,99 +195,205 @@ def compute_streaks(dates):
     }
 
 
+def parse_timestamp(ts):
+    """Parse a timestamp that may be an ISO string or numeric epoch."""
+    if ts is None:
+        return None
+    if isinstance(ts, (int, float)):
+        return datetime.fromtimestamp(ts / 1000 if ts > 1e10 else ts)
+    if isinstance(ts, str):
+        try:
+            return datetime.fromisoformat(ts.replace('Z', '+00:00')).replace(tzinfo=None)
+        except ValueError:
+            return None
+    return None
+
+
+# Approximate Claude API pricing per million tokens (as of early 2026).
+# Used to estimate cost from token usage when sessions don't record cost directly.
+MODEL_PRICING = {
+    'opus': {'input': 15.0, 'output': 75.0, 'cache_write': 18.75, 'cache_read': 1.5},
+    'sonnet': {'input': 3.0, 'output': 15.0, 'cache_write': 3.75, 'cache_read': 0.3},
+    'haiku': {'input': 1.0, 'output': 5.0, 'cache_write': 1.25, 'cache_read': 0.1},
+}
+
+
+def estimate_cost(model, usage):
+    """Estimate USD cost from model name and usage dict."""
+    if not usage or not model:
+        return 0.0
+    tier = 'sonnet'
+    model_lower = model.lower()
+    if 'opus' in model_lower:
+        tier = 'opus'
+    elif 'haiku' in model_lower:
+        tier = 'haiku'
+    price = MODEL_PRICING[tier]
+    inp = usage.get('input_tokens', 0) or 0
+    out = usage.get('output_tokens', 0) or 0
+    cache_write = usage.get('cache_creation_input_tokens', 0) or 0
+    cache_read = usage.get('cache_read_input_tokens', 0) or 0
+    return (
+        inp * price['input']
+        + out * price['output']
+        + cache_write * price['cache_write']
+        + cache_read * price['cache_read']
+    ) / 1_000_000
+
+
 def collect_claude_sessions(since_date):
-    """Collect Claude Code session metadata from ~/.claude/sessions/."""
-    sessions_dir = Path.home() / '.claude' / 'sessions'
-    if not sessions_dir.exists():
+    """Collect Claude Code session data from ~/.claude/projects/**/*.jsonl.
+
+    Groups main session files and their subagent files into single logical sessions
+    keyed by the sessionId field inside the JSONL entries. This is required because
+    Claude Code periodically cleans up main session .jsonl files but leaves
+    subagents/ subdirs intact, so many older sessions only survive as subagent data.
+    """
+    projects_dir = Path.home() / '.claude' / 'projects'
+    if not projects_dir.exists():
         return []
 
     since_dt = datetime.fromisoformat(since_date) if isinstance(since_date, str) else since_date
-    sessions = []
 
-    for path in sessions_dir.glob('*.json'):
+    # Keyed by sessionId (falls back to parent-dir uuid for subagents without sessionId)
+    sessions = {}
+
+    for path in projects_dir.rglob('*.jsonl'):
+        is_subagent = 'subagents' in path.parts
+
+        # Derive the parent session ID from the path:
+        # - main file:  projects/<proj>/<sid>.jsonl  -> sid
+        # - subagent:   projects/<proj>/<sid>/subagents/agent-XXX.jsonl  -> sid
+        if is_subagent:
+            try:
+                sid_from_path = path.parent.parent.name
+            except IndexError:
+                sid_from_path = path.stem
+        else:
+            sid_from_path = path.stem
+
         try:
-            with open(path) as f:
-                data = json.load(f)
-        except (json.JSONDecodeError, OSError):
+            file_contents = open(path).readlines()
+        except OSError:
             continue
 
-        metadata = data.get('metadata', {})
-        messages = data.get('messages', [])
+        for line in file_contents:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
 
-        created = metadata.get('createdAt')
-        if not created:
-            continue
+            entry_type = entry.get('type')
+            if entry_type not in ('user', 'assistant'):
+                continue
 
-        try:
-            created_dt = datetime.fromisoformat(created.replace('Z', '+00:00')).replace(tzinfo=None)
-        except (ValueError, AttributeError):
-            continue
+            sid = entry.get('sessionId') or sid_from_path
+            timestamp = parse_timestamp(entry.get('timestamp'))
+            if timestamp is None:
+                continue
+            if timestamp < since_dt:
+                continue
 
-        if created_dt < since_dt:
-            continue
+            if sid not in sessions:
+                sessions[sid] = {
+                    'id': sid,
+                    'first_timestamp': timestamp,
+                    'last_timestamp': timestamp,
+                    'user_messages': 0,
+                    'assistant_messages': 0,
+                    'tool_calls': [],
+                    'skills_used': [],
+                    'models': set(),
+                    'cost': 0.0,
+                    'cwd': entry.get('cwd', ''),
+                    'project': os.path.basename(entry.get('cwd', '')) if entry.get('cwd') else '',
+                    'git_branches': set(),
+                    'has_subagent_data': False,
+                    'has_main_data': False,
+                }
 
-        tool_calls = []
-        assistant_tokens = 0
-        user_messages = 0
-        assistant_messages = 0
-        skills_used = []
+            session = sessions[sid]
+            if is_subagent:
+                session['has_subagent_data'] = True
+            else:
+                session['has_main_data'] = True
 
-        for message in messages:
-            role = message.get('role', '')
-            if role == 'user':
-                user_messages += 1
-            elif role == 'assistant':
-                assistant_messages += 1
+            if timestamp < session['first_timestamp']:
+                session['first_timestamp'] = timestamp
+            if timestamp > session['last_timestamp']:
+                session['last_timestamp'] = timestamp
+
+            if entry.get('cwd') and not session['cwd']:
+                session['cwd'] = entry['cwd']
+                session['project'] = os.path.basename(entry['cwd'])
+            if entry.get('gitBranch'):
+                session['git_branches'].add(entry['gitBranch'])
+
+            if entry_type == 'user':
+                session['user_messages'] += 1
+            else:
+                session['assistant_messages'] += 1
+
+            message = entry.get('message', {})
+            if not isinstance(message, dict):
+                continue
+
+            model = message.get('model')
+            if model:
+                session['models'].add(model)
+
+            usage = message.get('usage', {})
+            if usage:
+                session['cost'] += estimate_cost(model or '', usage)
 
             content = message.get('content', [])
-            if isinstance(content, str):
+            if not isinstance(content, list):
                 continue
             for block in content:
                 if not isinstance(block, dict):
                     continue
                 if block.get('type') == 'tool_use':
                     tool_name = block.get('name', '')
-                    tool_calls.append(tool_name)
+                    session['tool_calls'].append(tool_name)
                     if tool_name == 'Skill':
-                        skill = block.get('input', {}).get('skill', '')
+                        skill = (block.get('input') or {}).get('skill', '')
                         if skill:
-                            skills_used.append(skill)
+                            session['skills_used'].append(skill)
 
-        # Extract project from cwd
-        cwd = metadata.get('cwd', '')
-        project = os.path.basename(cwd) if cwd else ''
+    # Finalize sessions into the expected shape
+    result = []
+    for session in sessions.values():
+        created_dt = session['first_timestamp']
+        last_dt = session['last_timestamp']
+        duration_minutes = round((last_dt - created_dt).total_seconds() / 60, 1)
 
-        updated = metadata.get('updatedAt')
-        duration_minutes = None
-        if created and updated:
-            try:
-                updated_dt = datetime.fromisoformat(updated.replace('Z', '+00:00')).replace(tzinfo=None)
-                duration_minutes = round((updated_dt - created_dt).total_seconds() / 60, 1)
-            except (ValueError, AttributeError):
-                pass
-
-        sessions.append({
-            'id': metadata.get('id', path.stem),
-            'created': created,
+        result.append({
+            'id': session['id'],
+            'created': created_dt.isoformat(),
             'date': created_dt.strftime('%Y-%m-%d'),
             'hour': created_dt.hour,
             'weekday': created_dt.strftime('%A'),
             'week': created_dt.strftime('%Y-W%V'),
             'month': created_dt.strftime('%Y-%m'),
-            'model': metadata.get('model', 'unknown'),
-            'cost': metadata.get('totalCostUsd', 0) or 0,
-            'turns': metadata.get('turnCount', 0) or 0,
-            'user_messages': user_messages,
-            'assistant_messages': assistant_messages,
-            'tool_calls': tool_calls,
-            'tool_count': len(tool_calls),
-            'skills_used': skills_used,
-            'project': project,
-            'title': metadata.get('title', ''),
+            'model': next(iter(session['models'])) if session['models'] else 'unknown',
+            'models': sorted(session['models']),
+            'cost': round(session['cost'], 4),
+            'turns': session['user_messages'],
+            'user_messages': session['user_messages'],
+            'assistant_messages': session['assistant_messages'],
+            'tool_calls': session['tool_calls'],
+            'tool_count': len(session['tool_calls']),
+            'skills_used': session['skills_used'],
+            'project': session['project'],
+            'git_branches': sorted(session['git_branches']),
+            'title': '',
             'duration_minutes': duration_minutes,
+            'source': 'main+subagent' if (session['has_main_data'] and session['has_subagent_data'])
+                     else 'subagent-only' if session['has_subagent_data']
+                     else 'main-only',
         })
 
-    return sorted(sessions, key=lambda s: s['created'])
+    return sorted(result, key=lambda s: s['created'])
 
 
 def analyze_claude_sessions(sessions):
@@ -317,8 +423,15 @@ def analyze_claude_sessions(sessions):
         all_skills.extend(s['skills_used'])
     skill_counts = dict(Counter(all_skills).most_common(20))
 
-    # Model usage
-    model_counts = dict(Counter(s['model'] for s in sessions).most_common())
+    # Model usage (each session can span multiple models, so count by 'models' list)
+    model_counts = Counter()
+    for s in sessions:
+        for model in s.get('models') or [s['model']]:
+            model_counts[model] += 1
+    model_counts = dict(model_counts.most_common())
+
+    # Data source breakdown (main+subagent / subagent-only / main-only)
+    source_counts = dict(Counter(s.get('source', 'unknown') for s in sessions).most_common())
 
     # Per-project breakdown
     project_counts = Counter(s['project'] for s in sessions if s['project'])
@@ -408,6 +521,7 @@ def analyze_claude_sessions(sessions):
         },
         'duration': duration_stats,
         'models': model_counts,
+        'data_sources': source_counts,
         'tools': tool_counts,
         'skills': skill_counts,
         'by_project': project_stats,
