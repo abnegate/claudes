@@ -67,25 +67,64 @@ A release is pre-release if:
 - The version contains `-alpha`, `-beta`, or `-rc` (e.g. `1.0.0-beta.1`)
 - The user explicitly says it's a pre-release
 
-### 3. Create the release
+### 3. Build the changelog
 
-Run:
+Fetch all commits since the last release:
+
+```bash
+git log <latest-tag>..HEAD --pretty=format:"%s" --no-merges
+```
+
+If no previous release, use `git log --pretty=format:"%s" --no-merges`.
+
+Classify each commit by its conventional commit prefix and group into sections:
+
+- **New Features** — `feat:` or `feat(…):` prefixed commits
+- **Bug Fixes** — `fix:` or `fix(…):` prefixed commits
+- **Other Changes** — everything else (`refactor:`, `chore:`, `docs:`, `perf:`, `test:`, `style:`, `build:`, `ci:`)
+
+Within each section, list commits as bullet points. Strip the type prefix for readability (e.g. `(feat): add planner agent` becomes `Add planner agent`). Capitalise the first letter. Keep the description concise.
+
+Omit empty sections. If a section has no commits, don't include it.
+
+Format the body as:
+
+```markdown
+## New Features
+
+- Add planner agent for task decomposition
+- Add verifier agent for plan validation
+
+## Bug Fixes
+
+- Restore swoole API surfaces stripped during compression
+- Remove arbitrary subtask limit from consolidation skill
+
+## Other Changes
+
+- Compress android-expert skill — remove training-redundant content
+- Rename elite-fullstack-architect -> architect, code-griller -> reviewer
+- Update commands to use consolidation pattern for parallel work
+```
+
+### 4. Create the release
 
 ```bash
 gh release create <version> \
   --title "<version>" \
-  --generate-notes \
+  --notes "$(cat <<'EOF'
+[changelog body from step 3]
+EOF
+)" \
   --target <branch> \
   [--prerelease]
 ```
 
-- `--generate-notes` auto-generates the changelog from merged PRs and commits since the last release
-- `--target` specifies the branch (default `main`)
-- `--prerelease` is added when pre-release is detected or explicitly requested
+Use `--notes` with the hand-crafted changelog, NOT `--generate-notes`.
 
-### 4. Confirm
+### 5. Confirm
 
-After creation, display the release URL so the user can verify it. Run:
+After creation, display the release URL:
 
 ```bash
 gh release view <version> --json url,tagName,isPrerelease,createdAt
@@ -93,62 +132,17 @@ gh release view <version> --json url,tagName,isPrerelease,createdAt
 
 ## Examples
 
-**Example 1 — explicit version:**
-Prompt: release 1.2.3
-Command: `gh release create 1.2.3 --title "1.2.3" --generate-notes --target main`
+**Explicit version:**
+Prompt: `release 1.2.3`
+1. Build changelog from commits since last tag
+2. `gh release create 1.2.3 --title "1.2.3" --notes "[changelog]" --target main`
 
-**Example 2 — bump keyword:**
-Prompt: release patch
-Latest tag: `1.2.3` → resolved version: `1.2.4`
-Command: `gh release create 1.2.4 --title "1.2.4" --generate-notes --target main`
+**Auto-detect:**
+Prompt: `create a release`
+1. Fetch last tag (`1.2.3`), classify commits, detect bump (minor — new features)
+2. Show confirmation with changelog preview and proposed version (`1.3.0`)
+3. After user confirms: `gh release create 1.3.0 --title "1.3.0" --notes "[changelog]" --target main`
 
-**Example 3 — bump keyword (major):**
-Prompt: release major
-Latest tag: `1.2.3` → resolved version: `2.0.0`
-Command: `gh release create 2.0.0 --title "2.0.0" --generate-notes --target main`
-
-**Example 4 — pre-release:**
-Prompt: cut a release 2.0.0-beta.1 on the develop branch
-Command: `gh release create 2.0.0-beta.1 --title "2.0.0-beta.1" --generate-notes --target develop --prerelease`
-
-**Example 5 — explicit pre-release:**
-Prompt: create release 3.1.0 on feature/v3 as a pre-release
-Command: `gh release create 3.1.0 --title "3.1.0" --generate-notes --target feature/v3 --prerelease`
-
-**Example 6 — bump keyword with no previous releases:**
-Prompt: release minor
-No previous release found → base: `0.0.0` → resolved version: `0.1.0`
-Command: `gh release create 0.1.0 --title "0.1.0" --generate-notes --target main`
-
-**Example 7 — auto-detect (no version provided):**
-Prompt: create a release
-Confirmation shown to user:
-> **Previous version:** `1.2.3`
->
-> **Changes since `1.2.3`:**
-> - Features: `feat: add dark mode support`
-> - Fixes: `fix: correct tooltip positioning`
-> - Other: `chore: update dependencies`
->
-> **Detected bump:** minor — new features detected
-> **Proposed version:** `1.3.0`
->
-> Proceed?
-
-After user confirms → `gh release create 1.3.0 --title "1.3.0" --generate-notes --target main`
-
-**Example 8 — auto-detect with breaking change:**
-Prompt: ship it
-Confirmation shown to user:
-> **Previous version:** `2.1.0`
->
-> **Changes since `2.1.0`:**
-> - Breaking: `feat!: redesign authentication API`
-> - Fixes: `fix: handle null user gracefully`
->
-> **Detected bump:** major — breaking changes detected
-> **Proposed version:** `3.0.0`
->
-> Proceed?
-
-After user confirms → `gh release create 3.0.0 --title "3.0.0" --generate-notes --target main`
+**Pre-release:**
+Prompt: `cut a release 2.0.0-beta.1 on develop`
+1. `gh release create 2.0.0-beta.1 --title "2.0.0-beta.1" --notes "[changelog]" --target develop --prerelease`
