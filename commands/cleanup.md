@@ -96,11 +96,11 @@ This handles the bulk of import cleanup automatically.
 ./gradlew test
 ```
 
-## Phase 3: Manual Cleanup (Parallel by File Group)
+## Phase 3: Manual Cleanup (Consolidation Pattern)
 
-Using the unified manifest from Phase 1, partition the affected files into independent groups (files that don't import each other). **Launch parallel agents per group:**
+Using the unified manifest from Phase 1, partition the affected files into groups. Use the **consolidation pattern** — launch each file group as a parallel worktree-isolated agent (`isolation: "worktree"`). Agents can freely edit overlapping files; the consolidator handles merges.
 
-**Each Agent** (`elite-fullstack-architect`): For its assigned file group, apply all queued fixes from the manifest:
+**Each worktree agent**: For its assigned file group, apply all queued fixes from the manifest:
 
 1. **Dead code removal**: Delete confirmed unused private functions, classes, parameters. Remove commented-out code blocks. Clean up or remove stale TODO comments.
 2. **Deprecated code migration**: Where a replacement is specified in the `@Deprecated` annotation, migrate callers to the replacement. Where we own the deprecated symbol and it has zero external callers, remove it.
@@ -108,12 +108,13 @@ Using the unified manifest from Phase 1, partition the affected files into indep
 4. **Code style normalization**: Fix naming violations, remove section-header comments (`// ---`, `// ===`), standardize error handling within each file.
 5. **Documentation cleanup**: Remove stale/obvious comments. Add KDoc to public APIs that are missing it. Fix mismatched `@param`/`@return` tags.
 
-After all edits in the group, run a targeted compile check:
+Each agent commits its changes before finishing.
+
+**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches, resolve any overlapping edits, and verify the merged result compiles:
+
 ```bash
 ./gradlew compileKotlin
 ```
-
-**Wait for all file-group agents to complete.**
 
 ### 3.1 Integration Verify
 
@@ -121,7 +122,7 @@ After all edits in the group, run a targeted compile check:
 ./gradlew test
 ```
 
-If tests fail, identify which file group introduced the failure and fix it before proceeding.
+If tests fail, fix before proceeding.
 
 ## Phase 4: Final Formatting
 

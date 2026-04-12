@@ -130,129 +130,66 @@ mkdir -p plans
 
 ## Phase Loop: For Each Implementation Phase
 
+### Parallel vs Sequential Phases
+
+Before entering the loop, identify which phases are **independent** (don't depend on each other's output) and which are **sequential** (build on the previous phase's code).
+
+**Independent phases**: launch ALL of them simultaneously using the **consolidation pattern** — each phase runs in its own worktree (`isolation: "worktree"`), then the **consolidator** agent (`subagent_type: "consolidator"`) merges all branches. This is the preferred path when phases touch different modules or file groups.
+
+**Sequential phases**: run one at a time through the loop below.
+
+When using the consolidation pattern, each worktree agent follows Steps 1-6 internally and commits its own work. After the consolidator merges, proceed to Step 8 (update plan) for all completed phases, then Step 9.
+
+For sequential phases, follow the loop:
+
 ### Step 1: Write Tests First (TDD Red)
 
-Use **elite-fullstack-architect** to write tests BEFORE implementation:
-
-```
-Write failing tests for Phase N:
+Write failing tests BEFORE implementation:
 - Unit tests for new functions/classes
 - Integration tests for API endpoints (if applicable)
-- Edge case tests
-- Error handling tests
+- Edge case tests, error handling tests
+- Follow project test patterns (discovered in Phase 0.2)
 
-Follow project test patterns (discovered in Phase 0.2).
-```
-
-Run tests to confirm they fail using the project's test command.
-
-Tests MUST fail at this point (red phase).
+Run tests to confirm they fail. Tests MUST fail at this point (red phase).
 
 ### Step 2: Implement Code (TDD Green)
 
-Use **elite-fullstack-architect** to implement minimal code to pass tests:
-
-```
-Implement Phase N:
+Implement minimal code to pass tests:
 - Write the minimum code to make tests pass
 - Follow project patterns and conventions
-- No premature optimization
-- No extra features beyond what tests require
-```
+- No premature optimization, no extra features beyond what tests require
 
-Run the project's test command.
-
-If tests fail:
-- Analyze failure
-- Fix implementation
-- Re-run tests
-- Repeat until ALL tests pass
+Run tests. If they fail: analyze, fix, re-run. Repeat until ALL tests pass.
 
 ### Step 3: Parallel Review + Test Verification
 
-**Launch TWO parallel agents simultaneously.** Do NOT run these sequentially.
+**Launch TWO parallel agents simultaneously:**
 
-**Agent A - Code Review:**
-```
-Use code-griller to review the changes for Phase N:
-- git diff from before phase started
-- Focus on: security, correctness, maintainability, performance
-- Check test quality and coverage
-- Verify project patterns followed strictly
-- Report all findings categorized as critical/warning/suggestion
-```
+**Agent A - Code Review** (`code-griller`): Review the diff for this phase. Focus on security, correctness, maintainability, performance. Report findings as critical/warning/suggestion.
 
-**Agent B - Full Test Suite:**
-```
-Run the project's FULL test suite (not just the new tests).
-Report: pass/fail status, any failures with details, total test count.
-```
-
-**Wait for both agents to complete.** Collect the review findings and test results.
+**Agent B - Full Test Suite**: Run the FULL test suite. Report pass/fail status, any failures with details.
 
 ### Step 4: Address Review Findings
 
-Use **elite-fullstack-architect** to fix review issues:
-
-```
-Address code-griller findings:
-1. Verify each issue (skip false positives)
-2. Fix all critical issues
-3. Fix all warnings
-4. Apply reasonable suggestions
-```
+Fix all critical issues and warnings from the review. Apply reasonable suggestions.
 
 ### Step 5: Parallel Test Verification + Refactor Analysis
 
-**Launch TWO parallel agents simultaneously.** Do NOT run these sequentially.
+**Launch TWO parallel agents simultaneously:**
 
-**Agent A - Test Verification:**
-```
-Run the project's full test suite.
-Confirm all tests pass after review fixes.
-Report: pass/fail status, any failures with details.
-```
+**Agent A - Test Verification**: Run full test suite. Confirm all tests pass after review fixes.
 
-**Agent B - Refactor Analysis:**
-```
-Analyze the Phase N code for refactoring opportunities:
-- Duplicated code that can be extracted
-- Overly complex methods that should be split
-- Naming improvements
-- Unnecessary abstractions or missing abstractions
-- Performance improvements that don't sacrifice readability
-Report a prioritized list of refactoring actions.
-```
+**Agent B - Refactor Analysis**: Analyze the phase code for refactoring opportunities (duplication, complexity, naming, unnecessary abstractions).
 
-**Wait for both agents to complete.**
-
-If Agent A reports test failures:
-- Fix the issues immediately
-- Re-run tests
-- Do NOT proceed until green
+If Agent A reports failures, fix immediately before proceeding.
 
 ### Step 6: Refactor (TDD Refactor)
 
-Apply the refactoring actions identified by Agent B in Step 5:
-
-```
-Refactor Phase N code:
-- Apply the prioritized refactoring actions from the analysis
-- Improve readability
-- Remove duplication
-- Optimize if needed
-- Keep tests passing
-```
-
-Run tests again after refactoring.
+Apply refactoring actions from Step 5. Run tests again after refactoring.
 
 ### Step 7: Commit Phase
 
-Delegate to the `skills:commit` command with a message that reflects the phase:
-
-```
-Skill(skill="skills:commit", args="(feat): [phase description]")
-```
+Delegate to `skills:commit` with a message reflecting the phase.
 
 ### Step 8: Update Plan File
 

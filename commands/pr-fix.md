@@ -72,19 +72,17 @@ Each agent:
 3. Determines which files need changes
 4. Outputs a structured diagnosis: `{check_name, root_cause, files_to_change, proposed_fix}`
 
-#### 3b. Parallel Fixes
+#### 3b. Parallel Fixes (Consolidation Pattern)
 
-Partition diagnosed failures into independent groups (failures affecting different files). Launch parallel **elite-fullstack-architect** agents to fix each group simultaneously.
+Partition diagnosed failures into groups by root cause. Use the **consolidation pattern** — launch each fix group as a parallel worktree-isolated agent (`isolation: "worktree"`). Agents can freely edit overlapping files; the consolidator handles merges.
 
-Rules for parallelization:
-- Failures touching completely different files can always be parallel
-- Failures touching the same file must go to the same agent
-- If two checks fail for the same root cause, combine into one agent
-
-**Per fix agent:**
+**Per worktree agent:**
 1. Apply the proposed fix from the analysis
 2. Verify the fix makes sense in context (read surrounding code)
 3. Make minimal, focused changes
+4. Commit before finishing
+
+**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches.
 
 #### 3c. Commit and Push
 
@@ -118,19 +116,17 @@ Group review comments by file. Launch a separate agent per file (or per independ
 2. Determine what change is needed
 3. Output a structured plan: `{file, line, comment_summary, proposed_change}`
 
-#### 4b. Parallel Comment Fixes
+#### 4b. Parallel Comment Fixes (Consolidation Pattern)
 
-Launch parallel **elite-fullstack-architect** agents to address independent comment groups simultaneously:
+Launch each comment group as a parallel worktree-isolated agent (`isolation: "worktree"`). Agents can freely edit overlapping files; the consolidator handles merges.
 
-Rules for parallelization:
-- Comments on different files can always be parallel
-- Comments on the same file region must go to the same agent
-- It does not matter whether it is a bot or human comment
-
-**Per fix agent:**
+**Per worktree agent:**
 1. Apply the requested change (or closest reasonable interpretation)
 2. Respect the reviewer's intent — don't make superficial changes
 3. Verify the fix is consistent with surrounding code
+4. Commit before finishing
+
+**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches.
 
 #### 4c. Commit and Push
 

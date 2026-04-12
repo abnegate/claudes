@@ -79,19 +79,17 @@ Combine findings from all four review agents into a single prioritized issue lis
 2. Warnings
 3. Suggestions
 
-### Step 4: Parallel Architect Fixes
+### Step 4: Parallel Fixes (Consolidation Pattern)
 
-Partition the deduplicated issue list into independent groups (issues in different files, or non-overlapping regions of the same file). Launch parallel **elite-fullstack-architect** agents to fix each group simultaneously.
+Partition the deduplicated issue list into groups by area/theme. Use the **consolidation pattern** — launch each fix group as a parallel worktree-isolated agent (`isolation: "worktree"`). Agents can freely edit overlapping files; the consolidator handles merges.
 
-**Per fix agent:**
+**Per worktree agent:**
 1. Verify each assigned issue is valid (not a false positive)
 2. Fix confirmed issues with minimal, focused changes
 3. Ensure fixes do not introduce new issues
+4. Commit all changes before finishing
 
-Rules for parallelization:
-- Issues in the same file region must go to the same agent (avoid merge conflicts)
-- Issues in completely separate files can always be parallel
-- If unsure, serialize rather than risk conflicts
+**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches and resolve any overlapping edits.
 
 ### Step 5: Verify (Parallel)
 
