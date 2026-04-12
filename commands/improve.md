@@ -160,7 +160,7 @@ After all cycles, report:
 
 Stop early if:
 - No issues found (code is clean)
-- Same issues persist after 2 attempts (may need human input)
+- Same issue persists after a fix attempt (escalate to user)
 - Only minor suggestions remain (no critical/warnings)
 
 ## Test Failure Policy
@@ -169,6 +169,6 @@ There is no such thing as a "pre-existing" test failure. If any test fails, fix 
 
 ## Notes
 
-- Max recommended cycles: 3 (diminishing returns after)
+- Run as many cycles as the user requests
 - Each cycle builds on previous improvements
 - Don't fix the same issue twice — track what's been addressed

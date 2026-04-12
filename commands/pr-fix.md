@@ -103,7 +103,7 @@ sleep 10
 gh pr checks <pr-ref> --watch
 ```
 
-If checks still fail, repeat from 3a (up to 5 attempts).
+If checks still fail, repeat from 3a. Escalate to the user only if the same failure persists after a fix attempt.
 
 ### 4. Address PR Comments (when comments=true)
 
@@ -154,7 +154,7 @@ If fixing comments introduces new check failures, loop back to step 3.
 Continue iterating until:
 - All enabled checks pass
 - All comments are addressed (if comments=true)
-- Or you have exhausted reasonable attempts (max 5 iterations — then escalate to user)
+- Or the same failure persists after a fix attempt (escalate to user)
 
 ## Important Notes
 
@@ -173,4 +173,4 @@ Continue iterating until:
 
 Stop iterating when:
 - All checks pass (required - no exceptions)
-- 5 fix attempts have been made without resolution (escalate to user, do not give up)
+- The same failure persists after a fix attempt (escalate to user)

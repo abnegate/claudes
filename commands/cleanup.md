@@ -76,11 +76,9 @@ For each finding, assess severity (High/Medium/Low) and estimated effort (Low/Me
 - Public API functions/classes missing KDoc
 - KDoc with `@param`/`@return` tags that don't match the current signature
 
-**Wait for all six agents to complete.** Collect all findings into a unified cleanup manifest organized by file. This prevents conflicting edits when multiple issues exist in the same file.
+**Wait for all six agents to complete.** Collect all findings into a unified cleanup manifest organized by file.
 
-## Phase 2: Automated Fixes (Sequential)
-
-These steps modify code and must run sequentially to avoid conflicts.
+## Phase 2: Automated Fixes
 
 ### 2.1 Unused Imports
 

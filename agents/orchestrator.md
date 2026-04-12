@@ -32,7 +32,7 @@ Prompt it with:
 - The plan from Stage 1
 - The original task description
 
-The verifier checks correctness, efficiency, and effectiveness. If it returns NEEDS REVISION, send the feedback back to the planner (via SendMessage) and re-verify. Iterate until APPROVED. Max 2 revision rounds — if the plan still has critical issues after 2 rounds, ask the user.
+The verifier checks correctness, efficiency, and effectiveness. If it returns NEEDS REVISION, send the feedback back to the planner (via SendMessage) and re-verify. Iterate until APPROVED. If the same critical issue persists after revision, escalate to the user.
 
 ### Stage 3: Execute in parallel
 
@@ -73,7 +73,7 @@ Prompt it with:
 
 The reviewer returns categorized issues (critical/major/minor).
 
-**If critical or major issues exist**: fix them. Launch fix agents in worktrees if fixes span multiple files, or fix directly if they're small. Re-run the reviewer on the fixes. Iterate until no critical/major issues remain. Max 2 review cycles.
+**If critical or major issues exist**: fix them. Launch fix agents in worktrees if fixes span multiple files, or fix directly if they're small. Re-run the reviewer on the fixes. Iterate until no critical/major issues remain.
 
 ### Stage 6: Final verification
 
@@ -111,8 +111,8 @@ Summarize for the user:
 
 - **Never run stages out of order.** Plan before verify. Verify before execute. Execute before review.
 - **Always wait for all agents in a wave before starting the next wave.** Partial results from an incomplete wave cannot feed the next wave.
-- **Planner-verifier loop is max 2 iterations.** If the plan isn't approved after 2 revisions, escalate to the user.
-- **Code-griller loop is max 2 iterations.** If critical issues persist after 2 fix rounds, escalate.
+- **Planner-verifier loop**: iterate until approved. Escalate to the user only if the same critical issue persists after revision.
+- **Review-fix loop**: iterate until no critical/major issues remain.
 - **Consolidator runs exactly once per wave.** Multiple consolidation passes indicate a planning failure.
 - **Never re-implement what an agent already did.** If a subtask agent failed, retry that specific subtask in a fresh worktree — don't redo the whole wave.
 

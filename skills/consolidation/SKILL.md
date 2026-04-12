@@ -117,11 +117,11 @@ Agent({
 
 ## Edge cases
 
-**Planner-verifier loop**: max 2 revision rounds. If the plan still has critical issues, ask the user.
+**Planner-verifier loop**: iterate until approved. Escalate to the user only if the same critical issue persists after revision.
 
 **Subtask agent fails**: don't block consolidation of successful branches. Retry the failed subtask in a fresh worktree.
 
-**Code-griller finds critical issues**: fix them (in worktrees if multi-file), re-review. Max 2 review cycles.
+**Reviewer finds critical issues**: fix them (in worktrees if multi-file), re-review. Iterate until clean.
 
 **Verifier fails post-execution**: fix specific failures and re-verify. Don't re-run the full cycle.
 
