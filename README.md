@@ -81,7 +81,7 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 | Command | Usage | Description |
 |---------|-------|-------------|
 | **update-claudes** | `/update-claudes` | Pull latest commands/skills/agents from repo and verify symlinks are in sync |
-| **history** | `/history <query>` | Search Claude Code conversation history on disk for a given query |
+| **history?** | `/history? <query>` | Search Claude Code conversation history on disk for a given query |
 
 ## Skills
 
@@ -93,6 +93,7 @@ Reference guides loaded by Claude on demand. These are not user-invocable — Cl
 | **database-design** | Schema design, optimization, migrations for PostgreSQL, MySQL, NoSQL |
 | **frontend-design** | Create distinctive, production-grade UIs that avoid generic AI aesthetics |
 | **react-best-practices** | React hooks, component patterns, state management, performance optimization |
+| **swoole-expert** | Deep reference for Swoole PHP (5.x/6.x) — coroutines, hooks, servers, pooling, pitfalls |
 
 ## Adding to Projects
 

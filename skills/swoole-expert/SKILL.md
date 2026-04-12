@@ -63,9 +63,34 @@ Do NOT stash `$this` in the context -- it holds a strong reference and usually l
 
 ---
 
-## 2. Coroutines -- key behaviors
+## 2. Coroutines
 
-Standard `go()` / `Co\run()` / `Co::create()` API. Key non-obvious behaviors only:
+### Creating and running
+
+```php
+Swoole\Coroutine::create(callable $fn, mixed ...$args): int|false
+go(callable $fn, mixed ...$args): int|false  // short alias
+
+Swoole\Coroutine\run(callable $fn): bool    // top-level entry point
+Co\run(callable $fn): bool                   // alias
+```
+
+All coroutine-creating APIs must run inside a **coroutine container** — either `Co\run()`, a server event callback, or a `Process`/`Process\Pool` worker with `enable_coroutine = true`. Nesting `run()` inside another `run()` is forbidden.
+
+### Introspection
+
+```php
+Swoole\Coroutine::getCid(): int                   // -1 if outside coroutine
+Swoole\Coroutine::getPcid(int $cid = 0): int|false
+Swoole\Coroutine::exists(int $cid): bool
+Swoole\Coroutine::list(): Swoole\Coroutine\Iterator
+Swoole\Coroutine::stats(): array                  // coroutine_num, coroutine_peak_num, ...
+Swoole\Coroutine::getBackTrace(int $cid = 0, int $options = DEBUG_BACKTRACE_PROVIDE_OBJECT, int $limit = 0): array
+Swoole\Coroutine::printBackTrace(int $cid = 0): void
+Swoole\Coroutine::getElapsed(int $cid = 0): int   // milliseconds alive
+```
+
+### Key non-obvious behaviors
 
 ### Parent/child priority gotcha
 
@@ -167,9 +192,25 @@ Co::set(['hook_flags' => SWOOLE_HOOK_ALL]);
 
 ## 4. Concurrency primitives
 
-### Channel gotchas
+### `Swoole\Coroutine\Channel`
 
-Standard CSP channel API (`new Channel($capacity)`, `push`, `pop`, `close`). Key gotchas:
+```php
+final class Swoole\Coroutine\Channel {
+    public int $capacity;
+    public int $errCode;  // SWOOLE_CHANNEL_OK | _TIMEOUT | _CLOSED | _CANCELED
+
+    public function __construct(int $capacity = 1);
+    public function push(mixed $data, float $timeout = -1): bool;
+    public function pop(float $timeout = -1): mixed;
+    public function close(): bool;
+    public function length(): int;
+    public function isEmpty(): bool;
+    public function isFull(): bool;
+    public function stats(): array;
+}
+```
+
+**Gotchas**:
 - Pushing `false`/`null`/`0` is ambiguous -- `pop()` also returns `false` on close/timeout. Always check `$chan->errCode`.
 - `close()` wakes ALL waiting producers/consumers; they return `false`.
 - Create channels in `onWorkerStart`, not before `start()`.
@@ -186,11 +227,21 @@ go(function () use ($sem) {
 });
 ```
 
-### WaitGroup
+### `Swoole\Coroutine\WaitGroup`
+
+```php
+final class Swoole\Coroutine\WaitGroup {
+    public function __construct(int $delta = 0);
+    public function add(int $delta = 1): void;
+    public function done(): void;
+    public function wait(float $timeout = -1): bool;  // false on timeout
+    public function count(): int;
+}
+```
 
 Always call `done()` in `finally` -- if a worker throws and skips `done()`, `wait()` hangs.
 
-### Barrier (preferred over WaitGroup)
+### `Swoole\Coroutine\Barrier` (preferred over WaitGroup)
 
 ```php
 use Swoole\Coroutine\Barrier;
@@ -214,6 +265,20 @@ go(function () {
     defer(fn() => $db = null);  // runs on coroutine exit, LIFO order, even on exception
 });
 ```
+
+### Timers
+
+```php
+Swoole\Timer::tick(int $msec, callable $cb, mixed ...$params): int
+Swoole\Timer::after(int $msec, callable $cb, mixed ...$params): int
+Swoole\Timer::clear(int $timer_id): bool
+Swoole\Timer::clearAll(): bool
+Swoole\Timer::info(int $timer_id): ?array
+Swoole\Timer::list(): Swoole\Timer\Iterator
+Swoole\Timer::stats(): array
+```
+
+Callback: `function(int $timerId, mixed ...$params): void`. In a coroutine container, timer callbacks run inside a new coroutine automatically.
 
 ### Batch primitives
 
@@ -268,6 +333,121 @@ $server->on('workerStart', function (Server $server, int $workerId): void {
 $server->start();
 ```
 
+### Server constructor
+
+```php
+new Swoole\Server(
+    string $host = '0.0.0.0',
+    int $port = 0,
+    int $mode = SWOOLE_BASE,           // SWOOLE_BASE (default), SWOOLE_PROCESS, SWOOLE_THREAD (6.0+ ZTS)
+    int $sock_type = SWOOLE_SOCK_TCP
+)
+```
+
+`Http\Server` and `WebSocket\Server` extend `Swoole\Server` with the same constructor. SSL: OR sock type with `SWOOLE_SSL`.
+
+### All server events
+
+```
+onStart(Server $server)                    // master start; NOT in SWOOLE_BASE mode
+onShutdown(Server $server)
+onManagerStart(Server $server)             // NOT in SWOOLE_BASE mode
+onManagerStop(Server $server)
+onBeforeReload(Server $server)             // 4.5+
+onAfterReload(Server $server)              // 4.5+
+onWorkerStart(Server $server, int $workerId)
+onWorkerStop(Server $server, int $workerId)
+onWorkerExit(Server $server, int $workerId)   // fires when reload_async and worker is draining
+onWorkerError(Server $server, int $workerId, int $workerPid, int $exitCode, int $signal)
+onBeforeShutdown(Server $server)           // 4.8+
+onPipeMessage(Server $server, int $srcWorkerId, mixed $message)
+
+// TCP
+onConnect(Server $server, int $fd, int $reactorId)
+onReceive(Server $server, int $fd, int $reactorId, string $data)
+onPacket(Server $server, string $data, array $clientInfo)   // UDP
+onClose(Server $server, int $fd, int $reactorId)
+
+// Task workers
+onTask(Server $server, Swoole\Server\Task $task)
+onFinish(Server $server, int $taskId, mixed $data)
+
+// HTTP
+onRequest(Swoole\Http\Request $request, Swoole\Http\Response $response)
+
+// WebSocket
+onHandShake(Http\Request $request, Http\Response $response): bool
+onOpen(WebSocket\Server $server, Http\Request $request)
+onMessage(WebSocket\Server $server, WebSocket\Frame $frame)
+```
+
+### Core server methods
+
+```php
+public function set(array $settings): bool;
+public function on(string $event, callable $callback): bool;
+public function start(): bool;
+public function stop(int $workerId = -1): bool;
+public function shutdown(): bool;
+public function reload(bool $onlyReloadTaskworker = false): bool;
+
+public function send(int|string $fd, string $data, int $serverSocket = -1): bool;
+public function close(int $fd, bool $reset = false): bool;
+public function exists(int $fd): bool;
+public function pause(int $fd): bool;
+public function resume(int $fd): bool;
+
+public function task(mixed $data, int $workerIdx = -1, ?callable $finishCb = null): int|false;
+public function taskwait(mixed $data, float $timeout = 0.5, int $workerIdx = -1): mixed;
+public function taskCo(array $tasks, float $timeout = 0.5): array|false;
+public function finish(mixed $data): bool;
+
+public function sendMessage(mixed $message, int $dstWorkerId): bool;
+public function addProcess(Swoole\Process $process): int|false;
+
+public function getClientInfo(int $fd, int $reactorId = -1): false|array;
+public function getWorkerId(): int|false;
+public function stats(): array;
+```
+
+### `Swoole\Http\Request` properties
+
+```php
+public int    $fd;
+public int    $streamId;
+public array  $header;     // lowercase keys
+public array  $server;     // request_method, request_uri, query_string, request_time, remote_addr, ...
+public ?array $cookie;
+public array  $get;
+public array  $post;
+public array  $files;
+
+public function rawContent(): string|false;   // alias getContent()
+public function getMethod(): string|false;
+```
+
+### `Swoole\Http\Response` methods
+
+```php
+public function status(int $httpCode, string $reason = ''): bool;
+public function header(string $key, string|array $value, bool $format = true): bool;
+public function cookie(string $name, string $value = '', int $expires = 0,
+    string $path = '/', string $domain = '', bool $secure = false, bool $httponly = false,
+    string $samesite = '', string $priority = ''): bool;
+public function trailer(string $key, string $value): bool;
+public function write(string $content): bool;     // chunked; disables compression
+public function end(?string $content = null): bool;
+public function sendfile(string $filename, int $offset = 0, int $length = 0): bool;
+public function redirect(string $location, int $httpCode = 302): bool;
+public function detach(): bool;
+
+// Upgrade to WebSocket from an HTTP server
+public function upgrade(): bool;
+public function push(Frame|string $data, int $opcode = WEBSOCKET_OPCODE_TEXT, int $flags = WEBSOCKET_FLAG_FIN): bool;
+public function recv(float $timeout = 0): Frame|string|false;
+public function close(): bool;
+```
+
 ### Server modes
 
 **Default mode changed from `SWOOLE_PROCESS` to `SWOOLE_BASE` in 5.0.** `SWOOLE_BASE` has no manager process -- workers accept directly. `SWOOLE_THREAD` (6.0+) requires ZTS PHP.
@@ -302,9 +482,18 @@ $results = $server->taskCo([['job' => 'a'], ['job' => 'b']], 5.0);
 
 **Caveat**: `task()`/`taskwait()` only callable from event workers. Prefer `taskCo()` when `task_enable_coroutine=true`.
 
-### WebSocket -- key differences from HTTP
+### WebSocket server
 
-WS-specific: use `$server->isEstablished($fd)` (NOT `exists()`) to check WS connection. `onHandShake` gives full control of the handshake; `onOpen` fires after the built-in one.
+WS-specific methods:
+
+```php
+public function push(int $fd, Frame|string $data, int $opcode = WEBSOCKET_OPCODE_TEXT, int $flags = WEBSOCKET_FLAG_FIN): bool;
+public function isEstablished(int $fd): bool;    // NOT exists() -- use this for WS
+public function disconnect(int $fd, int $code = WEBSOCKET_CLOSE_NORMAL, string $reason = ''): bool;
+public function ping(int $fd, string $data = ''): bool;
+```
+
+Use `$server->isEstablished($fd)` (NOT `exists()`) to check WS connection. `onHandShake` gives full control of the handshake; `onOpen` fires after the built-in one.
 
 **Broadcast pattern**:
 
@@ -331,6 +520,39 @@ foreach ($server->connections as $fd) {
 
 ### `Swoole\Process`
 
+```php
+final class Swoole\Process {
+    public int $pipe;
+    public int $pid;
+    public int $id;
+
+    public function __construct(
+        callable $callback,
+        bool $redirectStdinStdout = false,
+        int $pipeType = SOCK_DGRAM,    // 0=none, 1=SOCK_STREAM, 2=SOCK_DGRAM
+        bool $enableCoroutine = false
+    );
+
+    public function start(): bool|int;
+    public function write(string $data): int|false;
+    public function read(int $size = 8192): string|false;
+
+    // Sysv message queue IPC
+    public function useQueue(int $key = 0, int $mode = 2, int $capacity = -1): bool;
+    public function push(string $data): bool;
+    public function pop(int $size = 65536): string|false;
+
+    public function exportSocket(): Swoole\Coroutine\Socket|false;
+    public function name(string $name): bool;
+    public function exit(int $exitCode = 0): void;
+
+    public static function wait(bool $blocking = true): array|false;
+    public static function signal(int $signalNo, ?callable $callback = null): bool;
+    public static function kill(int $pid, int $signalNo = SIGTERM): bool;
+    public static function daemon(bool $nochdir = true, bool $noclose = true, array $pipes = []): bool;
+}
+```
+
 `$enableCoroutine = true` makes the callback run inside a coroutine scheduler. Signal handling: use `Swoole\Process::signal()`, not `pcntl_signal()`.
 
 ```php
@@ -339,6 +561,26 @@ Swoole\Process::signal(SIGINT,  fn() => $server->shutdown());
 ```
 
 ### `Swoole\Process\Pool`
+
+```php
+final class Swoole\Process\Pool {
+    public function __construct(
+        int $workerNum,
+        int $ipcType = SWOOLE_IPC_NONE,   // 0=none, 1=UNIXSOCK, 2=MSGQUEUE, 3=SOCKET
+        int $msgqueueKey = 0,
+        bool $enableCoroutine = false
+    );
+    public function set(array $settings): void;
+    public function on(string $event, callable $cb): bool;
+    public function getProcess(int $workerId = -1): Process|false;
+    public function listen(string $host, int $port = 0, int $backlog = 2048): bool;
+    public function write(string $data): bool;
+    public function sendMessage(string $data, int $dstWorkerId): bool;
+    public function start();
+    public function stop(): void;
+    public function shutdown(): bool;
+}
+```
 
 Minimal supervised worker pool -- bring your own protocol, no reactor. Good for "run my callable across N processes with shared TCP socket". Events: `WorkerStart`, `WorkerStop`, `Message`, `Start`, `Shutdown`.
 
@@ -351,6 +593,30 @@ Minimal supervised worker pool -- bring your own protocol, no reactor. Good for 
 ### `Swoole\Table`
 
 Mmap'd shared hash table -- the only way to share state across workers. Per-row spinlocks + CAS.
+
+```php
+final class Swoole\Table implements Iterator, Countable {
+    public const TYPE_INT    = 1;
+    public const TYPE_FLOAT  = 2;
+    public const TYPE_STRING = 3;
+
+    public function __construct(int $tableSize, float $conflictProportion = 0.2);
+    public function column(string $name, int $type, int $size = 0): bool;
+    public function create(): bool;
+    public function destroy(): bool;
+
+    public function set(string $key, array $value): bool;
+    public function get(string $key, ?string $field = null): mixed;
+    public function exists(string $key): bool;
+    public function del(string $key): bool;
+    public function count(): int;
+    public function incr(string $key, string $column, int|float $incrby = 1): int|float;
+    public function decr(string $key, string $column, int|float $incrby = 1): int|float;
+    public function getSize(): int;
+    public function getMemorySize(): int;
+    public function stats(): array|false;
+}
+```
 
 ```php
 $table = new Swoole\Table(8192);
@@ -375,7 +641,72 @@ $server->table = $table;  // attach so workers can reach it
 
 ---
 
-## 8. Hooked PDO and curl
+## 8. Coroutine clients
+
+### `Swoole\Coroutine\Http\Client`
+
+```php
+new Swoole\Coroutine\Http\Client(string $host, int $port, bool $ssl = false)
+// $host = IP, domain (async DNS), or unix://tmp/foo.sock. Do NOT pass http:// prefix.
+```
+
+**Properties**: `$errCode`, `$errMsg`, `$statusCode` (negative = network issue), `$body`, `$headers`, `$cookies`, `$set_cookie_headers`.
+
+Negative statusCode constants: `-1` CONNECT_FAILED, `-2` REQUEST_TIMEOUT, `-3` SERVER_RESET, `-4` SEND_FAILED.
+
+```php
+set(array $options): void
+setMethod(string $method): void
+setHeaders(array $headers): void
+setCookies(array $cookies): void
+setData(string|array $data): void
+addFile(string $path, string $name, ?string $mime = null, ?string $filename = null, int $offset = 0, int $length = 0): void
+addData(string $data, string $name, ?string $mime = null, ?string $filename = null): void
+get(string $path): bool
+post(string $path, mixed $data): bool
+download(string $path, string $filename, int $offset = 0): bool
+upgrade(string $path): bool        // websocket handshake
+push(mixed $data, int $opcode = WEBSOCKET_OPCODE_TEXT, int $flags = WEBSOCKET_FLAG_FIN): bool
+recv(float $timeout = 0): Frame|false
+close(): bool
+```
+
+**Functional shortcuts** (`Swoole\Coroutine\Http` namespace, >= 4.6.4):
+
+```php
+use function Swoole\Coroutine\Http\{get, post, request};
+$resp = get('https://httpbin.org/get?hello=world');
+```
+
+### `Swoole\Coroutine\Socket`
+
+Low-level coroutine-native socket for custom protocols.
+
+```php
+new Swoole\Coroutine\Socket(int $domain, int $type, int $protocol);
+
+bind(string $address, int $port = 0): bool
+listen(int $backlog = 0): bool
+accept(float $timeout = 0): Co\Socket|false
+connect(string $host, int $port = 0, float $timeout = 0): bool
+send(string $data, float $timeout = 0): int|false
+sendAll(string $data, float $timeout = 0): int|false
+recv(int $length = 65536, float $timeout = 0): string|false
+recvAll(int $length, float $timeout = 0): string|false
+recvPacket(float $timeout = 0): string|false   // uses framing from setProtocol()
+recvLine(int $length = 65536, float $timeout = 0): string|false
+setProtocol(array $settings): bool              // same framing options as Server->set()
+checkLiveness(): bool
+close(): bool
+```
+
+### Removed coroutine clients (6.0+)
+
+**Removed entirely**: `Swoole\Coroutine\MySQL`, `Coroutine\Redis`, `Coroutine\PostgreSQL`. Use hooked PDO/ext-redis with `SWOOLE_HOOK_ALL`. Never generate code using these for 6.x.
+
+---
+
+## 9. Hooked PDO and curl
 
 ### Hooked PDO
 
@@ -398,13 +729,9 @@ Co\run(function () {
 });
 ```
 
-### Removed coroutine clients (6.0+)
-
-**Removed entirely**: `Swoole\Coroutine\MySQL`, `Coroutine\Redis`, `Coroutine\PostgreSQL`. Use hooked PDO/ext-redis with `SWOOLE_HOOK_ALL`. Never generate code using these for 6.x.
-
 ---
 
-## 9. Connection pooling
+## 10. Connection pooling
 
 `swoole/library` ships with ext-swoole (auto-loaded via `swoole.enable_library=On`).
 
@@ -484,7 +811,7 @@ final class GrpcPool
 
 ---
 
-## 10. Pitfalls catalog
+## 11. Pitfalls catalog
 
 ### Never block inside a coroutine
 
@@ -550,7 +877,7 @@ Exceptions **cannot** cross coroutine boundaries. `go(fn() => throw new X)` insi
 
 ---
 
-## 11. Production tuning
+## 12. Production tuning
 
 ### Worker sizing
 
@@ -600,7 +927,7 @@ Do **not** set `net.ipv4.tcp_tw_recycle = 1` -- removed in Linux 4.12, unsafe wi
 
 ---
 
-## 12. Testing
+## 13. Testing
 
 ### PHPUnit entry point
 
@@ -631,7 +958,7 @@ PHPStan: add `vendor/swoole/ide-helper/src/swoole/constants.php` to `bootstrapFi
 
 ---
 
-## 13. Swoole 6.x version notes
+## 14. Swoole 6.x version notes
 
 ### 6.0 (2024-12)
 
