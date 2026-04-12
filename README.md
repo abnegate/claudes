@@ -31,16 +31,26 @@ With symlinks, commands are invoked without the namespace prefix (`/commit`, `/p
 
 ## Agents
 
-Custom agents invoked automatically by Claude based on task context.
+Specialized agents that form a structured execution cycle. The **orchestrator** is the entry point — it coordinates the others automatically for non-trivial tasks.
 
-| Agent | Model | Description |
-|-------|-------|-------------|
-| **orchestrator** | Opus | Conducts the full agent cycle — planner, verifier, parallel architects, consolidator, reviewer, final verification. Entry point for non-trivial tasks. |
-| **planner** | Opus | Decomposes tasks into smallest work units, maps dependencies and parallelism, assigns agents, defines verification criteria. |
-| **verifier** | Opus | Validates plans pre-execution (correctness, efficiency) and confirms outcomes post-execution (tests, lint, acceptance criteria). |
-| **architect** | Opus | Implements code in worktree isolation. Production-ready, performance-optimized, handles any tech stack. |
-| **consolidator** | Opus | Merges parallel worktree branches with intelligent conflict resolution using full context of every subtask's intent. |
-| **reviewer** | Opus | Uncompromising code reviewer — catches bugs, security vulnerabilities, performance bottlenecks, and code smells. |
+```
+orchestrator
+  -> planner        (decompose task into subtasks)
+  -> verifier       (validate plan correctness + efficiency)
+  -> architects     (parallel worktree execution)
+  -> consolidator   (merge all branches)
+  -> reviewer       (review merged output)
+  -> verifier       (confirm acceptance criteria met)
+```
+
+| Agent | Model | Role |
+|-------|-------|------|
+| **orchestrator** | Opus | Conducts the full cycle — entry point for any non-trivial task |
+| **planner** | Opus | Decomposes tasks into smallest work units, maps dependencies and parallelism |
+| **verifier** | Opus | Validates plans pre-execution and confirms outcomes post-execution |
+| **architect** | Opus | Implements code in worktree isolation — production-ready, any tech stack |
+| **consolidator** | Opus | Merges parallel worktree branches with intelligent conflict resolution |
+| **reviewer** | Opus | Reviews code for bugs, security, performance, readability, and maintainability |
 
 ## Commands
 
@@ -50,54 +60,56 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| **commit** | `/commit [message]` | Create git commit with conventional commit message format |
+| **commit** | `/commit [message]` | Create git commit with conventional commit message |
 | **commit-all** | `/commit-all` | Create git commits in logical groups for all current changes |
 | **pr** | `/pr [title]` | Commit pending changes, push, and create a pull request |
-| **pr-fix** | `/pr-fix <url>` | Fix failing CI checks on a pull request |
-| **issue** | `/issue <issue-id>` | Implement a Linear issue end-to-end |
+| **pr-fix** | `/pr-fix <url>` | Fix failing CI checks and address PR comments |
+| **issue** | `/issue <issue-id>` | Implement a Linear issue end-to-end using the orchestrator cycle |
 | **hotfix** | `/hotfix <description>` | Emergency hotfix workflow for production issues |
-| **release** | `/release [version] [branch] [pre-release]` | Create a GitHub release with auto-generated changelog |
-| **orchestrate** | `/orchestrate <description>` | End-to-end feature workflow — branch, implement, review-fix, PR, wait, pr-fix |
+| **release** | `/release [version] [branch]` | Create a GitHub release with auto-generated changelog |
+| **orchestrate** | `/orchestrate <description>` | End-to-end feature workflow — branch, implement, improve, PR, wait, pr-fix |
 
 ### Development
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| **build** | `/build [target]` | Build project (auto-detects: Gradle, Maven, Cargo, npm/yarn/pnpm, Go, Make, CMake, Python, Ruby, Elixir, Zig, Deno, Bun, PHP/Composer, Docker) |
-| **install** | `/install [--device <target>] [--variant <variant>]` | Install the app on a device, emulator, or simulator (auto-detects platform) |
-| **run** | `/run [--no-install] [--device <target>] [--variant <variant>]` | Build, install, and launch the app on a target device |
-| **cmp** | `/cmp <cmd> [args]` | Run docker compose commands (e.g., `/cmp up -d`, `/cmp logs -f`) |
-| **implement** | `/implement <feature>` | Full TDD implementation of a feature with review cycles |
-| **refactor** | `/refactor <target>` | Safe refactoring with comprehensive test coverage |
+| **implement** | `/implement <feature>` | TDD feature implementation via the orchestrator cycle |
+| **refactor** | `/refactor <target>` | Safe refactoring with planner, parallel worktrees, and verification |
+| **build** | `/build [target]` | Build project (auto-detects build system) |
+| **install** | `/install [--device <target>]` | Install app on device/emulator (auto-detects platform) |
+| **run** | `/run [--device <target>]` | Build, install, and launch app on target device |
 
 ### Code Quality
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| **review** | `/review` | Thorough code review of current branch against main using reviewer |
-| **review-fix** | `/review-fix [cycles]` | Review code and fix issues in iterative cycles |
-| **cleanup** | `/cleanup [module\|all]` | Find and remove dead code, unused imports, and technical debt |
+| **improve** | `/improve [cycles]` | Review and improve code — fix bugs, harden security, optimize performance, improve readability |
+| **review** | `/review` | Read-only code review of current branch against main |
+| **cleanup** | `/cleanup [module\|all]` | Remove dead code, unused imports, and technical debt |
 | **debug** | `/debug <error>` | Debug and fix failing tests or errors |
 | **investigate** | `/investigate <issue>` | Deep investigation of bugs, performance issues, or unexpected behavior |
 
-### Maintenance
+### Utilities
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| **update-claudes** | `/update-claudes` | Pull latest commands/skills/agents from repo and verify symlinks are in sync |
-| **history?** | `/history? <query>` | Search Claude Code conversation history on disk for a given query |
+| **history?** | `/history? <query>` | Search Claude Code conversation history on disk |
+| **profile?** | `/profile?` | Build a developer profile from git activity and session history |
 
 ## Skills
 
-Reference guides loaded by Claude on demand. These are not user-invocable — Claude consults them when relevant context appears.
+Reference guides loaded by Claude on demand. These are not user-invocable — Claude consults them automatically when relevant context appears.
 
 | Skill | Description |
 |-------|-------------|
+| **consolidation** | The full agent cycle — orchestrator, planner, verifier, architects, consolidator, reviewer |
+| **android-expert** | Jetpack Compose + MVI house rules — contract pattern, Koin, Nav3, strong skipping, testing scaffold |
+| **php-expert** | PHP 8.3+ house rules — typed constants, enums, exceptions, PHPUnit 12, Pint/PHPStan/Rector |
+| **swoole-expert** | Swoole 5.x/6.x — coroutines, runtime hooks, servers, connection pooling, pitfalls, 6.x API changes |
 | **backend-development** | Backend API design, database architecture, microservices patterns, TDD |
 | **database-design** | Schema design, optimization, migrations for PostgreSQL, MySQL, NoSQL |
 | **frontend-design** | Create distinctive, production-grade UIs that avoid generic AI aesthetics |
 | **react-best-practices** | React hooks, component patterns, state management, performance optimization |
-| **swoole-expert** | Deep reference for Swoole PHP (5.x/6.x) — coroutines, hooks, servers, pooling, pitfalls |
 
 ## Adding to Projects
 

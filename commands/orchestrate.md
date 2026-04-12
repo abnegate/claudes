@@ -1,11 +1,11 @@
 ---
-description: End-to-end feature workflow - branch, implement, review-fix, PR, wait, pr-fix
+description: End-to-end feature workflow - branch, implement, improve, PR, wait, pr-fix
 argument-hint: <feature description>
 ---
 
 # Orchestrate Feature
 
-Full end-to-end pipeline: sync the base branch, cut a new working branch, implement the feature, run review-fix cycles, open a PR, then auto-fix CI once checks have had time to run.
+Full end-to-end pipeline: sync the base branch, cut a new working branch, implement the feature, run improve cycles, open a PR, then auto-fix CI once checks have had time to run.
 
 ## Arguments
 
@@ -89,7 +89,7 @@ Agent({
 })
 ```
 
-The orchestrator handles decomposition, parallel execution, consolidation, review, and verification internally. It replaces the old pattern of a single architect + separate review-fix cycles.
+The orchestrator handles decomposition, parallel execution, consolidation, review, and verification internally. It replaces the old pattern of a single architect + separate improve cycles.
 
 After the orchestrator returns, verify:
 ```bash
@@ -99,15 +99,15 @@ git log "$BASE"..HEAD --oneline
 
 If the working tree is dirty (uncommitted changes), commit them before moving on.
 
-## Step 5: Run review-fix (optional additional cycles)
+## Step 5: Run improve (optional additional cycles)
 
-If the complexity assessment calls for additional review cycles beyond what the orchestrator performed, invoke review-fix:
+If the complexity assessment calls for additional review cycles beyond what the orchestrator performed, invoke improve:
 
 ```
-Skill(skill="skills:review-fix", args="$REMAINING_CYCLES")
+Skill(skill="skills:improve", args="$REMAINING_CYCLES")
 ```
 
-For most tasks the orchestrator's built-in reviewer + verifier cycle is sufficient. Only run additional review-fix cycles for Big/Huge features.
+For most tasks the orchestrator's built-in reviewer + verifier cycle is sufficient. Only run additional improve cycles for Big/Huge features.
 
 ## Step 6: Run pr
 
@@ -165,4 +165,4 @@ After pr-fix completes, report:
 3. **DO NOT DESTROY USER WORK** - If the working tree is dirty at Step 1, stop and ask.
 4. **DO NOT GUESS THE BASE BRANCH** - Use the detection logic; ask if it fails.
 5. **ROUND COMPLEXITY UP, NOT DOWN** - Extra review cycles are cheap insurance.
-6. **USE THE Skill TOOL FOR SUB-SKILLS** - Do not inline review-fix / pr / pr-fix logic; call them so their own updates are automatically picked up.
+6. **USE THE Skill TOOL FOR SUB-SKILLS** - Do not inline improve / pr / pr-fix logic; call them so their own updates are automatically picked up.
