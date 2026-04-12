@@ -64,8 +64,9 @@
 
 - When creating slash commands or skills for Claude Code plugins, always use the `commands/` directory format (not `skills/`). Slash commands must be placed in `.claude/commands/` to be visible.
 
-## Android / Jetpack Compose
+## UI Changes
 
+- After any UI change, take a screenshot and analyse it to verify the result matches intent. Don't report a UI task as complete without visual confirmation. If screenshots aren't available, say so explicitly rather than assuming it looks right.
 - When modifying UI composables (especially wrapping in `AnimatedVisibility`, adding/removing containers), always verify that ALL sibling elements remain visible and correctly structured. Check that section headers, dividers, and other structural elements aren't accidentally hidden.
 - When making visual/UI refinements (gradients, colors, spacing, sizing), make the MINIMAL change requested. Do not proactively change related visual properties unless explicitly asked. If iterating on visual tuning, present 2-3 options with descriptions rather than guessing.
 
