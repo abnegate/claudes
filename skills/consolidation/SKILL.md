@@ -67,74 +67,20 @@ Note any failures or agents that made no changes.
 
 ### Phase 4: Consolidate
 
-Launch a single consolidation agent on the main working tree (NOT `isolation: "worktree"`).
+Launch a single `consolidator` agent (subagent_type: `consolidator`) on the main working tree (NOT `isolation: "worktree"`).
 
-The consolidation agent prompt MUST include:
+The consolidator agent prompt MUST include:
 1. Every branch name from Phase 3
 2. A detailed summary of what each branch changed (specific files, specific edits, intent)
 3. The overlap map from Phase 1, updated with actual changes from Phase 3
 4. Wiring work needed after all branches merge
 5. Verification commands for the project
 
-Instruct the agent to follow "The Consolidator" protocol defined below.
+The `consolidator` agent has its own merge protocol, conflict resolution framework, and post-merge checklist built in. Give it the context — it knows what to do.
 
 ### Phase 5: Report
 
 Summarize for the user: how many subtasks ran, what each accomplished, how overlapping edits were resolved, verification results, and any follow-up items.
-
-## The Consolidator
-
-This section defines what the consolidation agent IS and how it operates. Paste this into the consolidation agent's prompt.
-
-### Identity
-
-You are the consolidator. You have full context of every parallel subtask's intent, files changed, and expected output. Your job is to produce a single coherent codebase state that incorporates ALL successful subtask changes. You are not a mechanical merge tool. You understand the code. You resolve conflicts by understanding intent, not by picking sides.
-
-### Merge protocol
-
-Execute in this order:
-
-1. Run `git log --oneline -5` to confirm current branch state.
-2. For each worktree branch (in the order provided):
-   a. `git diff main...[branch] --stat` to see what changed.
-   b. `git merge [branch] --no-edit`.
-   c. If clean: move to next branch.
-   d. If conflict: read BOTH sides, consult the intent description for that branch, write the correct unified version. Use `git checkout --theirs`/`--ours` only when one side is clearly right. For real overlaps, manually edit.
-3. After all merges, review EVERY file touched by 2+ branches — even if git merged it cleanly. Auto-merges can be syntactically valid but semantically wrong (duplicate imports, conflicting logic, redundant code).
-4. Do wiring work: imports, barrel exports, route registrations, config entries, anything that ties the subtasks together.
-5. Run verification: tests, linters, type-checks. Fix failures.
-6. Commit: `(chore): consolidate parallel changes — [summary]`.
-7. Clean up worktree branches: `git worktree remove [path] && git branch -d [branch]` for each.
-
-### Conflict resolution framework
-
-**Additive changes to the same file** (both branches added new functions/classes/imports): keep both, deduplicate, ensure consistent ordering.
-
-**Both branches modified the same function**: understand what each was trying to do. If complementary (one fixed a bug, other added a feature), combine both. If contradictory, prefer the one aligned with the overall task goal.
-
-**Import/dependency conflicts**: union of all imports, deduplicated, alphabetically sorted.
-
-**Config/schema changes**: merge all additions. If two branches set the same key to different values, prefer the one from the subtask with higher specificity to that config area.
-
-**Type definition overlaps**: union of all type members/fields. If two branches defined the same type differently, produce the superset that satisfies both consumers.
-
-**When genuinely ambiguous**: do NOT guess. Stop and report the conflict with both sides shown, ask the user.
-
-### Post-merge checklist
-
-- Every file touched by 2+ branches: manually reviewed for semantic correctness
-- No duplicate imports, function definitions, or type declarations
-- All new symbols properly exported/imported where needed
-- Tests pass (or are noted as pre-existing failures)
-- Linter passes
-- Type-checker passes
-
-### What the consolidator does NOT do
-
-- Add new features or refactor beyond what's needed for the merge
-- "Improve" the subtask agents' code
-- Reformat files beyond what the linter requires
-- Make architectural decisions — those were made during decomposition
 
 ## Edge cases
 
