@@ -103,9 +103,11 @@ Reference guides loaded by Claude on demand. These are not user-invocable — Cl
 | Skill | Description |
 |-------|-------------|
 | **consolidation** | The full agent cycle — orchestrator, planner, verifier, architects, consolidator, reviewer |
+| **kotlin-expert** | Kotlin 2.x/K2/KMP — context parameters, coroutine pitfalls, scope functions, delegation, sealed types, DSLs |
 | **android-expert** | Jetpack Compose + MVI house rules — contract pattern, Koin, Nav3, strong skipping, testing scaffold |
 | **php-expert** | PHP 8.3+ house rules — typed constants, enums, exceptions, PHPUnit 12, Pint/PHPStan/Rector |
 | **swoole-expert** | Swoole 5.x/6.x — coroutines, runtime hooks, servers, connection pooling, pitfalls, 6.x API changes |
+| **docker-expert** | Docker/Compose — multi-stage builds, Swoole containers, BuildKit, security, signal handling, CI/CD |
 | **backend-development** | Backend API design, database architecture, microservices patterns, TDD |
 | **database-design** | Schema design, optimization, migrations for PostgreSQL, MySQL, NoSQL |
 | **frontend-design** | Create distinctive, production-grade UIs that avoid generic AI aesthetics |
