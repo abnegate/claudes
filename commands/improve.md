@@ -129,10 +129,12 @@ Use `refactor` for structural improvements, `fix` for bug fixes, `perf` for perf
 
 ### Step 7: Next Cycle (if cycles > 1)
 
-If more cycles remain:
-- Return to Step 1 and repeat on the updated code
-- Each cycle should find fewer issues as the code improves
-- Track what was already addressed to avoid re-fixing
+If more cycles remain, return to Step 1 with a raised severity floor:
+- **Cycle 1**: fix critical + warning + suggestion
+- **Cycle 2**: fix critical + warning only
+- **Cycle 3+**: fix critical only
+
+Track what was already addressed to avoid re-fixing. This naturally converges — each cycle finds fewer issues as the bar rises.
 
 ## Cycle Summary
 
@@ -169,6 +171,5 @@ There is no such thing as a "pre-existing" test failure. If any test fails, fix 
 
 ## Notes
 
-- Run as many cycles as the user requests
-- Each cycle builds on previous improvements
+- Each cycle raises the severity floor so iteration naturally converges in 2-3 passes
 - Don't fix the same issue twice — track what's been addressed

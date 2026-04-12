@@ -73,7 +73,7 @@ Prompt it with:
 
 The reviewer returns categorized issues (critical/major/minor).
 
-**If critical or major issues exist**: fix them. Launch fix agents in worktrees if fixes span multiple files, or fix directly if they're small. Re-run the reviewer on the fixes. Iterate until no critical/major issues remain.
+**If critical or major issues exist**: fix them. Launch fix agents in worktrees if fixes span multiple files, or fix directly if they're small. Re-run the reviewer on the fixes. Each iteration, only fix issues at the current severity floor or above — first pass: critical + major + minor. Second pass: critical + major only. Third pass onward: critical only. Stop when the current floor produces no issues. This naturally converges in 2-3 cycles without an artificial cap.
 
 ### Stage 6: Final verification
 
@@ -112,7 +112,7 @@ Summarize for the user:
 - **Never run stages out of order.** Plan before verify. Verify before execute. Execute before review.
 - **Always wait for all agents in a wave before starting the next wave.** Partial results from an incomplete wave cannot feed the next wave.
 - **Planner-verifier loop**: iterate until approved. Escalate to the user only if the same critical issue persists after revision.
-- **Review-fix loop**: iterate until no critical/major issues remain.
+- **Review-fix loop**: raise the severity floor each iteration (all -> major+ -> critical only). Stop when clean at the current floor.
 - **Consolidator runs exactly once per wave.** Multiple consolidation passes indicate a planning failure.
 - **Never re-implement what an agent already did.** If a subtask agent failed, retry that specific subtask in a fresh worktree — don't redo the whole wave.
 

@@ -121,7 +121,7 @@ Agent({
 
 **Subtask agent fails**: don't block consolidation of successful branches. Retry the failed subtask in a fresh worktree.
 
-**Reviewer finds critical issues**: fix them (in worktrees if multi-file), re-review. Iterate until clean.
+**Reviewer finds issues**: fix and re-review. Raise the severity floor each iteration — first pass fixes all severities, second pass major+ only, third pass critical only. Stop when clean at the current floor.
 
 **Verifier fails post-execution**: fix specific failures and re-verify. Don't re-run the full cycle.
 
