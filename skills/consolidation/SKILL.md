@@ -1,129 +1,133 @@
 ---
 name: consolidation
-description: Decompose a task into independent subtasks and execute them in parallel using git worktree-isolated subagents, then consolidate all changes into a single clean merge. Each agent works in its own worktree so multiple agents can freely edit the same files without collision — a dedicated consolidation agent merges everything at the end using full context of every subtask's intent. Use for large refactors, multi-part features, batch operations, or any task that decomposes into concurrent work. Triggers on phrases like "do this in parallel", "consolidate", "split this up", or any multi-part task.
+description: The full parallel execution cycle for non-trivial tasks. Orchestrator decomposes work via the planner, validates via the verifier, executes in parallel worktrees via elite-fullstack-architect agents, merges via the consolidator, reviews via code-griller, and confirms via final verification. Use for any multi-part implementation, refactor, or batch operation. Triggers on phrases like "do this in parallel", "consolidate", "implement this feature", or any task that benefits from structured decomposition.
 ---
 
 # Consolidation
 
-Parallel execution engine for multi-part tasks. Decomposes work into subtasks, runs them simultaneously in isolated git worktrees, and merges all results into a single clean output.
+The structured cycle for executing non-trivial tasks with maximum parallelism and quality.
 
-Git worktrees give every agent its own complete copy of the repo. Multiple agents can edit the same files simultaneously without corruption. The consolidation agent at the end has full context of what every subtask intended, so it resolves conflicts by understanding code, not by picking sides.
+## The agent cycle
 
-## When to use
+```
+orchestrator
+  -> planner        (decompose task into subtasks)
+  -> verifier       (validate plan correctness + efficiency)
+  -> architects     (parallel worktree execution)
+  -> consolidator   (merge all branches)
+  -> code-griller   (review merged output)
+  -> verifier       (confirm acceptance criteria met)
+```
 
-- Multi-part features where components can be built concurrently
-- Large refactors spanning multiple modules (even when modules share files)
+Each agent has a single responsibility. The **orchestrator** coordinates. See `agents/` for each agent's full definition.
+
+## When to use the full cycle
+
+- Multi-file feature implementations
+- Large refactors spanning multiple modules
 - Batch operations across the codebase
-- Any task where serial execution wastes time
+- Any task with 2+ independent units of work
+
+## When to use a partial cycle
+
+- **Skip code-griller**: trivial changes, docs, config
+- **Skip worktrees**: single subtask (no parallelism benefit)
+- **Planner + verifier only**: when you need a plan but the user will execute manually
 
 ## When NOT to use
 
-- Trivial single-file changes that finish in seconds
-- Tasks with strict sequential dependencies where each step needs the previous step's output
+- Single-file edits that finish in seconds
+- Pure research/analysis tasks (no code changes)
 
-## Execution protocol
+## Quick reference
 
-Follow these phases exactly. Do not skip or reorder them.
+### Spawning the cycle
 
-### Phase 1: Analyze and decompose
-
-Study the task and codebase before launching anything:
-
-1. **Read the relevant code.** Understand file structure, dependencies, conventions. Build a mental map.
-2. **Identify subtasks.** Break the request into concurrent units. Each subtask must be self-contained enough that an agent can complete it from the current repo state alone, with clear completion criteria.
-3. **Map file overlaps.** Identify which files will be touched by multiple subtasks. This is expected, not a problem.
-4. **Plan the consolidation.** For each overlapping file, describe what each subtask will change and how those changes combine. Identify cross-cutting wiring work (barrel exports, route registrations, config entries).
-
-Present the decomposition:
+For any qualifying task, spawn the orchestrator:
 
 ```
-Subtask 1: [description] — files: [list]
-Subtask 2: [description] — files: [list]
-...
-Overlapping files: [file] (subtasks 1, 3), [file] (subtasks 2, 4)
-Consolidation plan: [how overlaps merge + wiring work]
+Agent({
+  description: "Orchestrate: [task summary]",
+  subagent_type: "orchestrator",
+  prompt: "[full task description with context]"
+})
 ```
 
-### Phase 2: Launch parallel worktree agents
+The orchestrator handles everything from there — planning, verification, parallel execution, consolidation, review, and final checks.
 
-Launch ALL subtasks simultaneously in a single message using multiple `Agent` tool calls. Every agent MUST use `isolation: "worktree"`.
+### Manual cycle (when you need finer control)
 
-Each agent prompt must be self-contained:
+If you need to run stages individually:
 
-1. **Full context** — the agent has never seen this conversation. Explain the overall goal, specific subtask, and why it matters.
-2. **Exact file paths** — which files to read first and which to create or modify.
-3. **Conventions** — paste or reference style rules, naming conventions, relevant CLAUDE.md rules.
-4. **Completion criteria** — what "done" looks like. The agent must commit its changes before finishing.
-5. **Parallel awareness** — tell the agent others are working concurrently. It should focus only on its own subtask. A consolidation agent will merge everything afterwards.
+**1. Plan:**
+```
+Agent({
+  description: "Plan: [task]",
+  subagent_type: "planner",
+  prompt: "[task + codebase context]"
+})
+```
 
-### Phase 3: Collect results
+**2. Verify plan:**
+```
+Agent({
+  description: "Verify plan",
+  subagent_type: "verifier",
+  prompt: "[plan output + original task]"
+})
+```
 
-When all agents complete, record for each:
-- `branch`: the branch name containing the agent's commits
-- `worktree_path`: the filesystem path of the worktree
-- A summary of what changed
+**3. Execute (parallel worktrees):**
+```
+Agent({
+  description: "Subtask 1: [name]",
+  subagent_type: "elite-fullstack-architect",
+  isolation: "worktree",
+  prompt: "[subtask details from plan]"
+})
+// ... launch all wave-1 subtasks simultaneously
+```
 
-Note any failures or agents that made no changes.
+**4. Consolidate:**
+```
+Agent({
+  description: "Consolidate branches",
+  subagent_type: "consolidator",
+  prompt: "[branch list + overlap map + wiring work]"
+})
+```
 
-### Phase 4: Consolidate
+**5. Review:**
+```
+Agent({
+  description: "Review changes",
+  subagent_type: "code-griller",
+  prompt: "[diff + task description]"
+})
+```
 
-Launch a single `consolidator` agent (subagent_type: `consolidator`) on the main working tree (NOT `isolation: "worktree"`).
-
-The consolidator agent prompt MUST include:
-1. Every branch name from Phase 3
-2. A detailed summary of what each branch changed (specific files, specific edits, intent)
-3. The overlap map from Phase 1, updated with actual changes from Phase 3
-4. Wiring work needed after all branches merge
-5. Verification commands for the project
-
-The `consolidator` agent has its own merge protocol, conflict resolution framework, and post-merge checklist built in. Give it the context — it knows what to do.
-
-### Phase 5: Report
-
-Summarize for the user: how many subtasks ran, what each accomplished, how overlapping edits were resolved, verification results, and any follow-up items.
+**6. Final verify:**
+```
+Agent({
+  description: "Final verification",
+  subagent_type: "verifier",
+  prompt: "[plan acceptance criteria + verification commands]"
+})
+```
 
 ## Edge cases
 
-**Subtask agent fails.** Do not block consolidation of successful branches. Merge what succeeded, report the failure, offer to retry in a fresh worktree.
+**Planner-verifier loop**: max 2 revision rounds. If the plan still has critical issues, ask the user.
 
-**Auto-merged but semantically wrong.** Git may merge cleanly but produce broken code (duplicate imports, conflicting signatures, incompatible logic). The consolidator must review every file touched by multiple branches and fix semantic issues before committing.
+**Subtask agent fails**: don't block consolidation of successful branches. Retry the failed subtask in a fresh worktree.
 
-**Subtask depends on another subtask's output.** These cannot run in parallel. Either merge them into one subtask or run the dependency first, merge its branch, then launch the dependent subtask in a second wave.
+**Code-griller finds critical issues**: fix them (in worktrees if multi-file), re-review. Max 2 review cycles.
+
+**Verifier fails post-execution**: fix specific failures and re-verify. Don't re-run the full cycle.
 
 ## Performance guidelines
 
-- **2-6 subtasks** is the sweet spot. More than 8 adds coordination overhead.
-- **Prefer fewer, larger subtasks** over many tiny ones. Each worktree has setup cost.
-- **Front-load the reading.** Do all codebase analysis in Phase 1 so agent prompts are precise. Vague prompts cause agents to waste time exploring.
-- **Be thorough in the overlap map.** The consolidator's effectiveness is directly proportional to how well you describe the overlaps and intended merge behavior.
-
-## Example
-
-User asks: "Refactor the auth system to use JWT tokens instead of sessions. Update the middleware, user model, login/register endpoints, and tests."
-
-```
-Subtask 1: Auth middleware
-  Files: src/middleware/auth.ts, src/lib/jwt.ts (new), src/types/auth.ts
-  Changes: Replace session checks with JWT verification, add JWT utility lib
-
-Subtask 2: User model + login/register
-  Files: src/models/user.ts, src/routes/auth.ts, src/types/auth.ts
-  Changes: Remove session methods, add token generation, update endpoints
-
-Subtask 3: Tests
-  Files: tests/auth.test.ts, tests/middleware.test.ts, tests/helpers/auth.ts
-  Changes: Rewrite all auth tests for JWT flow
-
-Overlapping files:
-  src/types/auth.ts — subtasks 1 and 2 both add JWT-related types.
-    Subtask 1 adds TokenPayload and VerifyOptions.
-    Subtask 2 adds LoginResponse and RegisterResponse with token fields.
-    Merge: include all four types.
-
-Consolidation wiring:
-  - Update src/app.ts to use new JWT middleware
-  - Update src/routes/index.ts if route signatures changed
-  - Ensure test helpers reference the new JWT utility
-```
-
-All three subtasks launch simultaneously. The consolidator merges all branches, combines the overlapping `auth.ts` types, does the wiring, and runs tests.
+- **2-6 subtasks per wave** is the sweet spot
+- **Maximize wave 1** — the more parallel work in the first wave, the faster overall execution
+- **Front-load reading** in the planner so architect prompts are precise
+- **Tests are subtasks** — write them in parallel with implementation, not after

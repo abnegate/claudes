@@ -1,27 +1,37 @@
 # consolidation
 
-Parallel execution engine for multi-part tasks. Decomposes work into subtasks, runs them simultaneously in git worktree-isolated subagents, and merges all results into a single clean output.
+The structured agent cycle for executing non-trivial tasks with maximum parallelism and quality.
+
+## The cycle
+
+```
+orchestrator
+  -> planner        (decompose task into subtasks)
+  -> verifier       (validate plan correctness + efficiency)
+  -> architects     (parallel worktree execution)
+  -> consolidator   (merge all branches)
+  -> code-griller   (review merged output)
+  -> verifier       (confirm acceptance criteria met)
+```
 
 ## Core idea
 
-Git worktrees give every agent its own complete copy of the repo. Multiple agents can freely edit the same files at the same time without corruption. A dedicated consolidator agent merges everything at the end, armed with full context of what every subtask intended — so conflicts are resolved by understanding code, not by picking sides.
+Git worktrees give every agent its own complete copy of the repo. Multiple agents can freely edit the same files simultaneously. The consolidator merges everything at the end using full context of every subtask's intent. The planner optimizes for maximum parallelism, the verifier catches mistakes before and after execution.
 
-## What it covers
+## Agents
 
-- **Task decomposition** — breaking a request into concurrent subtasks and mapping file overlaps
-- **Worktree-isolated parallel execution** — launching multiple subagents simultaneously, each in its own git worktree
-- **The consolidator** — a concrete agent role definition with merge protocol, conflict resolution framework, post-merge verification checklist, and clear boundaries on what it does and does not do
-- **Edge case handling** — failed subtasks, auto-merged but semantically wrong output, subtask dependencies
-- **Post-merge verification** — tests, linting, type-checks to confirm the consolidated result is correct
+| Agent | Role | When |
+|---|---|---|
+| **orchestrator** | Conducts the full cycle | Entry point for non-trivial tasks |
+| **planner** | Decomposes tasks, maps dependencies and parallelism | Stage 1 |
+| **verifier** | Validates plans pre-execution, confirms outcomes post-execution | Stages 2 and 6 |
+| **elite-fullstack-architect** | Implements code in worktree isolation | Stage 3 |
+| **consolidator** | Merges worktree branches with conflict resolution | Stage 4 |
+| **code-griller** | Reviews merged output for quality issues | Stage 5 |
 
 ## When to use
 
-- Multi-part features where components can be built concurrently
-- Large refactors spanning multiple modules (even when modules share files)
+- Multi-file feature implementations
+- Large refactors spanning multiple modules
 - Batch operations across the codebase
-- Any task where serial execution wastes time
-
-## When NOT to use
-
-- Trivial single-file changes that finish in seconds
-- Tasks with strict sequential dependencies where each step needs the previous step's output
+- Any task with 2+ independent units of work
