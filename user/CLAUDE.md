@@ -43,9 +43,19 @@
 - There are no "pre-existing issues". If tests fail, fix them, regardless of when you think the issue was introduced.
 - Every bug fix must include a regression test that fails without the fix and passes with it.
 
-## Workflow
+## Session Persistence & Autonomy
 
 - Don't stop mid-implementation to ask if I want to review. Keep going until success criteria is reached. Unnecessary pauses are disruptive.
+- Try at least 3 meaningfully different approaches before escalating to the user. A retry of the same thing doesn't count. Diagnose why it failed, then try something different.
+- When a test, build, or lint command fails, fix the issue immediately in the same turn. Do not report the failure and wait for instructions — diagnose the root cause and fix it. Only escalate if the same failure persists after 3 fix attempts.
+- When given a multi-step task, track progress with TaskCreate. If one step fails, fix it and continue to the next step — don't abandon the whole task or ask whether to continue.
+- If context is getting long and there's remaining work, spawn a continuation agent with a detailed handoff summary: what's done, what's left, the current git state, which files were touched, and any decisions made. The continuation agent must be self-contained.
+- When spawning agents for parallel work, always launch them in a single message to maximize concurrency. Never serialize independent work.
+- Prefer `/loop` for tasks that require monitoring or iteration — waiting for CI, polling for changes, iterating on review cycles.
+- After completing a fix or implementation, always verify by running the relevant tests/build/lint before reporting success. "I made the change" is not done — "the change passes all checks" is done.
+
+## Workflow
+
 - For any non-trivial implementation task, use the **orchestrator** agent which runs the full cycle: planner → verifier → parallel architects (worktrees) → consolidator → reviewer → verifier. For independent lightweight work (research, linting, testing), launch concurrent subagents in a single message. Sequential execution of independent work is unacceptable.
 - Never revert PR changes to work around missing dependencies. Add the dependency properly (e.g. as a VCS repository in `composer.json`).
 - Never use shims or patch files for local dependencies. Edit source in the dependency repo, commit and push, then run the package manager update in the consuming repo.
