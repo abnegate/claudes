@@ -127,7 +127,6 @@ Agent({
 
 ## Performance guidelines
 
-- **2-6 subtasks per wave** is the sweet spot
-- **Maximize wave 1** — the more parallel work in the first wave, the faster overall execution
+- **Maximize wave 1** — the more parallel work in the first wave, the faster overall execution. No upper limit on subtask count.
 - **Front-load reading** in the planner so architect prompts are precise
 - **Tests are subtasks** — write them in parallel with implementation, not after
