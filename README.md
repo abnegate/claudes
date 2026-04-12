@@ -93,8 +93,8 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| **history?** | `/history? <query>` | Search Claude Code conversation history on disk |
-| **profile?** | `/profile?` | Build a developer profile from git activity and session history |
+| **history** | `/history <query>` | Search Claude Code conversation history on disk |
+| **profile** | `/profile` | Build a developer profile from git activity and session history |
 
 ## Skills
 
