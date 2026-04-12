@@ -33,7 +33,7 @@ git log $BASE..HEAD --oneline
 
 ### 2. Parallel Code Review
 
-Launch these **code-griller** agents in parallel, each reviewing the same diff but focused on a different dimension:
+Launch these **reviewer** agents in parallel, each reviewing the same diff but focused on a different dimension:
 
 **Agent A — Security & Data Integrity:**
 - Security vulnerabilities (injection, auth bypass, data exposure)

@@ -74,7 +74,7 @@ Agent({
 })
 ```
 
-The orchestrator handles planner → verifier → parallel architects → consolidator → code-griller → verifier.
+The orchestrator handles planner → verifier → parallel architects → consolidator → reviewer → verifier.
 
 ## Phase 2: Finalize (PR)
 

@@ -114,7 +114,7 @@ Then launch a **verifier** agent (`subagent_type: "verifier"`) to validate the p
 
 ## Phase 3: Execute Refactoring
 
-**Independent steps** (touching different files with no dependency): launch ALL simultaneously as worktree-isolated **elite-fullstack-architect** agents, then merge via the **consolidator**.
+**Independent steps** (touching different files with no dependency): launch ALL simultaneously as worktree-isolated **architect** agents, then merge via the **consolidator**.
 
 **Sequential steps** (each depends on the previous): execute one at a time:
 
@@ -151,7 +151,7 @@ Continue with next step until refactoring complete.
 
 ## Phase 4: Review
 
-Launch a **code-griller** agent (`subagent_type: "code-griller"`) to review the full diff (`git diff main...HEAD`). Focus: behavior preservation, no accidental API changes, code quality improvement. Fix any critical/major issues found.
+Launch a **reviewer** agent (`subagent_type: "reviewer"`) to review the full diff (`git diff main...HEAD`). Focus: behavior preservation, no accidental API changes, code quality improvement. Fix any critical/major issues found.
 
 ## Phase 5: Final Verification
 

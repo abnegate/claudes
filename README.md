@@ -35,8 +35,12 @@ Custom agents invoked automatically by Claude based on task context.
 
 | Agent | Model | Description |
 |-------|-------|-------------|
-| **code-griller** | Opus | Uncompromising code reviewer that catches every issue - bugs, security vulnerabilities, performance bottlenecks, and code smells. Perfect for pre-production reviews and critical components. |
-| **elite-fullstack-architect** | Opus | Rapid full-stack development agent for building complete applications, complex architectures, and performance-critical implementations across any tech stack. |
+| **orchestrator** | Opus | Conducts the full agent cycle — planner, verifier, parallel architects, consolidator, reviewer, final verification. Entry point for non-trivial tasks. |
+| **planner** | Opus | Decomposes tasks into smallest work units, maps dependencies and parallelism, assigns agents, defines verification criteria. |
+| **verifier** | Opus | Validates plans pre-execution (correctness, efficiency) and confirms outcomes post-execution (tests, lint, acceptance criteria). |
+| **architect** | Opus | Implements code in worktree isolation. Production-ready, performance-optimized, handles any tech stack. |
+| **consolidator** | Opus | Merges parallel worktree branches with intelligent conflict resolution using full context of every subtask's intent. |
+| **reviewer** | Opus | Uncompromising code reviewer — catches bugs, security vulnerabilities, performance bottlenecks, and code smells. |
 
 ## Commands
 
@@ -70,7 +74,7 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| **review** | `/review` | Thorough code review of current branch against main using code-griller |
+| **review** | `/review` | Thorough code review of current branch against main using reviewer |
 | **review-fix** | `/review-fix [cycles]` | Review code and fix issues in iterative cycles |
 | **cleanup** | `/cleanup [module\|all]` | Find and remove dead code, unused imports, and technical debt |
 | **debug** | `/debug <error>` | Debug and fix failing tests or errors |

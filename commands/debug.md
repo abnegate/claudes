@@ -98,7 +98,7 @@ Read related files: interfaces, shared utilities, configuration, DI modules, dat
 
 ### 3.1 Implement Fix
 
-Use **elite-fullstack-architect** to implement the fix:
+Use **architect** to implement the fix:
 - Fix the root cause, not symptoms
 - Make the minimal targeted change
 - Preserve existing behavior for passing cases
@@ -130,7 +130,7 @@ Confirm no closely related tests have broken as a side effect of the fix.
 
 Launch **two parallel agents** for final validation.
 
-**Agent 1 - Code review** (use **code-griller**):
+**Agent 1 - Code review** (use **reviewer**):
 
 Review the fix for:
 - Correctness: is this the right fix for the root cause?
@@ -209,5 +209,5 @@ for i in {1..10}; do ./gradlew test --tests "*FlakyTest*" || break; done
 - [ ] Original failing test passes
 - [ ] ALL tests pass (no exceptions for "pre-existing" failures)
 - [ ] No regressions introduced
-- [ ] Fix reviewed via code-griller
+- [ ] Fix reviewed via reviewer
 - [ ] Committed with clear message

@@ -1,6 +1,6 @@
 ---
 name: consolidation
-description: The full parallel execution cycle for non-trivial tasks. Orchestrator decomposes work via the planner, validates via the verifier, executes in parallel worktrees via elite-fullstack-architect agents, merges via the consolidator, reviews via code-griller, and confirms via final verification. Use for any multi-part implementation, refactor, or batch operation. Triggers on phrases like "do this in parallel", "consolidate", "implement this feature", or any task that benefits from structured decomposition.
+description: The full parallel execution cycle for non-trivial tasks. Orchestrator decomposes work via the planner, validates via the verifier, executes in parallel worktrees via architect agents, merges via the consolidator, reviews via reviewer, and confirms via final verification. Use for any multi-part implementation, refactor, or batch operation. Triggers on phrases like "do this in parallel", "consolidate", "implement this feature", or any task that benefits from structured decomposition.
 ---
 
 # Consolidation
@@ -15,7 +15,7 @@ orchestrator
   -> verifier       (validate plan correctness + efficiency)
   -> architects     (parallel worktree execution)
   -> consolidator   (merge all branches)
-  -> code-griller   (review merged output)
+  -> reviewer       (review merged output)
   -> verifier       (confirm acceptance criteria met)
 ```
 
@@ -30,7 +30,7 @@ Each agent has a single responsibility. The **orchestrator** coordinates. See `a
 
 ## When to use a partial cycle
 
-- **Skip code-griller**: trivial changes, docs, config
+- **Skip reviewer**: trivial changes, docs, config
 - **Skip worktrees**: single subtask (no parallelism benefit)
 - **Planner + verifier only**: when you need a plan but the user will execute manually
 
@@ -81,7 +81,7 @@ Agent({
 ```
 Agent({
   description: "Subtask 1: [name]",
-  subagent_type: "elite-fullstack-architect",
+  subagent_type: "architect",
   isolation: "worktree",
   prompt: "[subtask details from plan]"
 })
@@ -101,7 +101,7 @@ Agent({
 ```
 Agent({
   description: "Review changes",
-  subagent_type: "code-griller",
+  subagent_type: "reviewer",
   prompt: "[diff + task description]"
 })
 ```

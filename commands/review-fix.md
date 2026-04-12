@@ -5,7 +5,7 @@ argument-hint: "[cycles=1]"
 
 # Review and Fix
 
-Perform code review cycles where parallel code-griller agents review and parallel elite-fullstack-architect agents fix issues.
+Perform code review cycles where parallel reviewer agents review and parallel architect agents fix issues.
 
 ## Arguments
 
@@ -41,9 +41,9 @@ git diff $BASE...HEAD
 git log $BASE..HEAD --oneline
 ```
 
-### Step 2: Parallel Code Griller Review
+### Step 2: Parallel Review
 
-Launch four **code-griller** agents in parallel, each reviewing the same diff but focused on a different dimension. Every agent receives the full diff and file list from Step 1.
+Launch four **reviewer** agents in parallel, each reviewing the same diff but focused on a different dimension. Every agent receives the full diff and file list from Step 1.
 
 **Agent A — Security & Data Integrity:**
 - Security vulnerabilities (injection, auth bypass, data exposure)

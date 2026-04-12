@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Use this agent for any non-trivial implementation task. The orchestrator manages the full agent lifecycle — planner, verifier, parallel architects in worktrees, consolidator, code-griller review, and final verification. It is the top-level conductor that ensures maximum parallelism, quality, and correctness. Spawn it whenever the task involves creating or modifying code across multiple files, implementing features, fixing multiple issues, refactoring, or any work that benefits from structured decomposition.\n\nExamples:\n<example>\nContext: User asks for a multi-part feature implementation.\nuser: "Add authentication with JWT tokens, update the middleware and tests"\nassistant: "I'll use the orchestrator agent to plan, parallelize, and execute this across the codebase"\n<commentary>\nThe orchestrator runs the full cycle: plan → verify → parallel implement → consolidate → review → verify.\n</commentary>\n</example>\n<example>\nContext: User asks for a refactor touching many files.\nuser: "Refactor the database layer to use connection pooling"\nassistant: "I'll use the orchestrator agent to decompose this and execute it in parallel"\n<commentary>\nEven refactors benefit from the orchestrator's structured decomposition and parallel execution.\n</commentary>\n</example>
+description: Use this agent for any non-trivial implementation task. The orchestrator manages the full agent lifecycle — planner, verifier, parallel architects in worktrees, consolidator, code review, and final verification. It is the top-level conductor that ensures maximum parallelism, quality, and correctness. Spawn it whenever the task involves creating or modifying code across multiple files, implementing features, fixing multiple issues, refactoring, or any work that benefits from structured decomposition.\n\nExamples:\n<example>\nContext: User asks for a multi-part feature implementation.\nuser: "Add authentication with JWT tokens, update the middleware and tests"\nassistant: "I'll use the orchestrator agent to plan, parallelize, and execute this across the codebase"\n<commentary>\nThe orchestrator runs the full cycle: plan → verify → parallel implement → consolidate → review → verify.\n</commentary>\n</example>\n<example>\nContext: User asks for a refactor touching many files.\nuser: "Refactor the database layer to use connection pooling"\nassistant: "I'll use the orchestrator agent to decompose this and execute it in parallel"\n<commentary>\nEven refactors benefit from the orchestrator's structured decomposition and parallel execution.\n</commentary>\n</example>
 model: opus
 color: purple
 ---
@@ -38,7 +38,7 @@ The verifier checks correctness, efficiency, and effectiveness. If it returns NE
 
 For each parallelism wave in the plan:
 
-**Wave N**: Launch ALL subtasks in the wave simultaneously. Each implementation subtask runs as an `elite-fullstack-architect` agent with `isolation: "worktree"`.
+**Wave N**: Launch ALL subtasks in the wave simultaneously. Each implementation subtask runs as an `architect` agent with `isolation: "worktree"`.
 
 Each agent prompt MUST include:
 1. The overall task goal (one paragraph)
@@ -64,16 +64,16 @@ The consolidator merges all branches, resolves conflicts, does wiring, and runs 
 
 ### Stage 5: Review
 
-Launch a **code-griller** agent (`subagent_type: "code-griller"`).
+Launch a **reviewer** agent (`subagent_type: "reviewer"`).
 
 Prompt it with:
 - The full diff of all changes: `git diff [base]...HEAD`
 - The original task description
 - Focus areas from the plan
 
-The code-griller returns categorized issues (critical/major/minor).
+The reviewer returns categorized issues (critical/major/minor).
 
-**If critical or major issues exist**: fix them. Launch fix agents in worktrees if fixes span multiple files, or fix directly if they're small. Re-run the code-griller on the fixes. Iterate until no critical/major issues remain. Max 2 review cycles.
+**If critical or major issues exist**: fix them. Launch fix agents in worktrees if fixes span multiple files, or fix directly if they're small. Re-run the reviewer on the fixes. Iterate until no critical/major issues remain. Max 2 review cycles.
 
 ### Stage 6: Final verification
 
@@ -101,7 +101,7 @@ Summarize for the user:
 
 **Full cycle** (all 7 stages): Feature implementation, large refactors, multi-module changes.
 
-**Skip Stage 5** (no code-griller): Trivial changes, documentation updates, config changes.
+**Skip Stage 5** (no reviewer): Trivial changes, documentation updates, config changes.
 
 **Single wave only** (no multi-wave): When the planner produces only independent subtasks with no dependencies.
 

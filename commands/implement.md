@@ -53,7 +53,7 @@ After the orchestrator completes, delegate to `skills:commit` (or `skills:commit
 The orchestrator's verifier confirms these before the cycle ends, but double-check:
 
 1. ALL tests pass
-2. Code is reviewed (code-griller) and issues addressed
+2. Code is reviewed (reviewer) and issues addressed
 3. No TODOs or placeholders in code
 4. Feature works end-to-end
 5. Lint and build pass

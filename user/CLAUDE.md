@@ -46,7 +46,7 @@
 ## Workflow
 
 - Don't stop mid-implementation to ask if I want to review. Keep going until success criteria is reached. Unnecessary pauses are disruptive.
-- For any non-trivial implementation task, use the **orchestrator** agent which runs the full cycle: planner → verifier → parallel architects (worktrees) → consolidator → code-griller → verifier. For independent lightweight work (research, linting, testing), launch concurrent subagents in a single message. Sequential execution of independent work is unacceptable.
+- For any non-trivial implementation task, use the **orchestrator** agent which runs the full cycle: planner → verifier → parallel architects (worktrees) → consolidator → reviewer → verifier. For independent lightweight work (research, linting, testing), launch concurrent subagents in a single message. Sequential execution of independent work is unacceptable.
 - Never revert PR changes to work around missing dependencies. Add the dependency properly (e.g. as a VCS repository in `composer.json`).
 - Never use shims or patch files for local dependencies. Edit source in the dependency repo, commit and push, then run the package manager update in the consuming repo.
 - Format and lint before every commit. PHP: `composer lint` (Pint, PSR-12). Kotlin: ktlint. Rust: `cargo fmt` + `cargo clippy -D warnings`. JS/TS: Prettier.
@@ -56,7 +56,7 @@
 
 ## Multi-Agent Coordination
 
-- For non-trivial tasks, spawn the **orchestrator** (`subagent_type: "orchestrator"`) which runs the full cycle: **planner** → **verifier** → parallel **elite-fullstack-architect** agents in worktrees → **consolidator** → **code-griller** → **verifier**. Each agent has a single responsibility.
+- For non-trivial tasks, spawn the **orchestrator** (`subagent_type: "orchestrator"`) which runs the full cycle: **planner** → **verifier** → parallel **architect** agents in worktrees → **consolidator** → **reviewer** → **verifier**. Each agent has a single responsibility.
 - Never serialize work just because agents touch the same file. Worktree isolation means every agent gets its own repo copy. The consolidator merges intelligently at the end.
 - Default to parallel. If in doubt whether tasks are independent, they probably are — launch them in worktrees and let the consolidator sort it out.
 

@@ -10,7 +10,7 @@ orchestrator
   -> verifier       (validate plan correctness + efficiency)
   -> architects     (parallel worktree execution)
   -> consolidator   (merge all branches)
-  -> code-griller   (review merged output)
+  -> reviewer       (review merged output)
   -> verifier       (confirm acceptance criteria met)
 ```
 
@@ -25,9 +25,9 @@ Git worktrees give every agent its own complete copy of the repo. Multiple agent
 | **orchestrator** | Conducts the full cycle | Entry point for non-trivial tasks |
 | **planner** | Decomposes tasks, maps dependencies and parallelism | Stage 1 |
 | **verifier** | Validates plans pre-execution, confirms outcomes post-execution | Stages 2 and 6 |
-| **elite-fullstack-architect** | Implements code in worktree isolation | Stage 3 |
+| **architect** | Implements code in worktree isolation | Stage 3 |
 | **consolidator** | Merges worktree branches with conflict resolution | Stage 4 |
-| **code-griller** | Reviews merged output for quality issues | Stage 5 |
+| **reviewer** | Reviews merged output for quality issues | Stage 5 |
 
 ## When to use
 

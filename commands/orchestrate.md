@@ -79,7 +79,7 @@ Record the choice as `CYCLES=N` and state the rationale in one sentence before p
 
 ## Step 4: Implement the Feature
 
-Spawn the **orchestrator** agent which runs the full cycle (planner → verifier → parallel architects → consolidator → code-griller → verifier):
+Spawn the **orchestrator** agent which runs the full cycle (planner → verifier → parallel architects → consolidator → reviewer → verifier):
 
 ```
 Agent({
@@ -107,7 +107,7 @@ If the complexity assessment calls for additional review cycles beyond what the 
 Skill(skill="skills:review-fix", args="$REMAINING_CYCLES")
 ```
 
-For most tasks the orchestrator's built-in code-griller + verifier cycle is sufficient. Only run additional review-fix cycles for Big/Huge features.
+For most tasks the orchestrator's built-in reviewer + verifier cycle is sufficient. Only run additional review-fix cycles for Big/Huge features.
 
 ## Step 6: Run pr
 

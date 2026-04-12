@@ -17,13 +17,13 @@ Systematic cleanup of dead code, unused imports, and technical debt.
 
 **Launch these agents in parallel:**
 
-**Agent A** (`elite-fullstack-architect`): Run the full test suite and capture the output.
+**Agent A** (`architect`): Run the full test suite and capture the output.
 ```bash
 ./gradlew test
 ```
 Report pass/fail status and any existing failures. If tests do not pass, STOP. Do not proceed until all tests are green.
 
-**Agent B** (`elite-fullstack-architect`): Run static analysis tools and capture current warning counts.
+**Agent B** (`architect`): Run static analysis tools and capture current warning counts.
 ```bash
 ./gradlew detekt
 ./gradlew ktlintCheck
@@ -114,7 +114,7 @@ Each agent commits its changes before finishing.
 
 ### 3.1 Review
 
-Launch a **code-griller** agent (`subagent_type: "code-griller"`) to review the merged diff. Fix any critical/major issues found.
+Launch a **reviewer** agent (`subagent_type: "reviewer"`) to review the merged diff. Fix any critical/major issues found.
 
 ### 3.2 Verify
 
