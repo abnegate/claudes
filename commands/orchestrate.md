@@ -79,37 +79,35 @@ Record the choice as `CYCLES=N` and state the rationale in one sentence before p
 
 ## Step 4: Implement the Feature
 
-Delegate implementation to an **elite-fullstack-architect** agent. Pass:
-- The full `$ARGUMENTS` description
-- The base branch name
-- Project conventions from any nearby `CLAUDE.md`
-- Instruction to follow TDD where the project has tests
-- Instruction to commit logically-grouped changes as it works
+Spawn the **orchestrator** agent which runs the full cycle (planner → verifier → parallel architects → consolidator → code-griller → verifier):
 
-The agent must implement fully - no TODOs, no placeholders, no "will add later".
+```
+Agent({
+  description: "Orchestrate: [feature summary]",
+  subagent_type: "orchestrator",
+  prompt: "## Task\n$ARGUMENTS\n\n## Constraints\n- TDD where project has tests\n- Follow project conventions\n- Commit logically-grouped changes\n- No TODOs, no placeholders\n\n## Working directory\n[cwd]"
+})
+```
 
-After the architect returns, verify:
+The orchestrator handles decomposition, parallel execution, consolidation, review, and verification internally. It replaces the old pattern of a single architect + separate review-fix cycles.
+
+After the orchestrator returns, verify:
 ```bash
 git status
 git log "$BASE"..HEAD --oneline
 ```
 
-If the working tree is dirty (uncommitted changes), commit them before moving on - `review-fix` reviews the diff vs base, not the worktree.
+If the working tree is dirty (uncommitted changes), commit them before moving on.
 
-## Step 5: Run review-fix
+## Step 5: Run review-fix (optional additional cycles)
 
-Invoke the `skills:review-fix` command with the computed cycle count:
+If the complexity assessment calls for additional review cycles beyond what the orchestrator performed, invoke review-fix:
 
 ```
-/skills:review-fix $CYCLES
+Skill(skill="skills:review-fix", args="$REMAINING_CYCLES")
 ```
 
-Use the Skill tool:
-```
-Skill(skill="skills:review-fix", args="$CYCLES")
-```
-
-Wait for it to complete. It will create additional commits on the current branch.
+For most tasks the orchestrator's built-in code-griller + verifier cycle is sufficient. Only run additional review-fix cycles for Big/Huge features.
 
 ## Step 6: Run pr
 

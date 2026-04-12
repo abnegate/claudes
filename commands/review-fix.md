@@ -91,21 +91,9 @@ Partition the deduplicated issue list into groups by area/theme. Use the **conso
 
 **After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches and resolve any overlapping edits.
 
-### Step 5: Verify (Parallel)
+### Step 5: Verify
 
-After all fix agents complete, launch these verification agents in parallel:
-
-**Agent V1 — Tests:**
-```bash
-# Run the project test suite (auto-detect build system)
-```
-
-**Agent V2 — Lint:**
-```bash
-# Run the project linter (auto-detect: ktlint, eslint, phpstan, etc.)
-```
-
-If either verification fails, fix the failures before proceeding.
+Launch a **verifier** agent (`subagent_type: "verifier"`) in post-verification mode to confirm tests pass and lint is clean. If it fails, fix and re-verify.
 
 ### Step 6: Commit Fixes
 

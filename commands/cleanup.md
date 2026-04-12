@@ -110,19 +110,15 @@ Using the unified manifest from Phase 1, partition the affected files into group
 
 Each agent commits its changes before finishing.
 
-**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches, resolve any overlapping edits, and verify the merged result compiles:
+**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches and resolve any overlapping edits.
 
-```bash
-./gradlew compileKotlin
-```
+### 3.1 Review
 
-### 3.1 Integration Verify
+Launch a **code-griller** agent (`subagent_type: "code-griller"`) to review the merged diff. Fix any critical/major issues found.
 
-```bash
-./gradlew test
-```
+### 3.2 Verify
 
-If tests fail, fix before proceeding.
+Launch a **verifier** agent (`subagent_type: "verifier"`) in post-verification mode to confirm all tests pass, lint is clean, build succeeds, and no behavior changes occurred.
 
 ## Phase 4: Final Formatting
 
@@ -130,31 +126,9 @@ If tests fail, fix before proceeding.
 ./gradlew ktlintFormat
 ```
 
-## Phase 5: Final Verification (Parallel)
+## Phase 5: Final Verification
 
-**Launch these agents in parallel:**
-
-**Agent A** (`elite-fullstack-architect`): Run the full test suite.
-```bash
-./gradlew test
-```
-
-**Agent B** (`elite-fullstack-architect`): Run lint checks.
-```bash
-./gradlew ktlintCheck
-```
-
-**Agent C** (`elite-fullstack-architect`): Run detekt analysis.
-```bash
-./gradlew detekt
-```
-
-**Agent D** (`elite-fullstack-architect`): Run a full build.
-```bash
-./gradlew build
-```
-
-**Wait for all four agents to complete.** All must pass. If any fail, fix the issues and re-run only the failing checks. Compare detekt/ktlint warning counts against the Phase 0 baseline to quantify improvement.
+Launch a **verifier** agent (`subagent_type: "verifier"`) in post-verification mode. It runs tests, lint, detekt, and build. Compare warning counts against the Phase 0 baseline to quantify improvement.
 
 ## Phase 6: Summary
 

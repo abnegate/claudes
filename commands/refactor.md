@@ -103,49 +103,22 @@ Tests that capture CURRENT behavior (even if it seems wrong):
 
 ## Phase 2: Plan Refactoring
 
-### 2.1 Parallel Goals and Research
+Launch a **planner** agent (`subagent_type: "planner"`) with the scope analysis from Phase 0 and the refactoring request. The planner will:
+- Rank refactoring goals by impact (readability, performance, maintainability, duplication, abstractions)
+- Identify which standard refactoring patterns apply with exact file/line locations
+- Break the refactoring into small, safe steps — each independently committable and test-green
+- Identify which steps are independent (can run in parallel worktrees) vs sequential
+- Order renames and moves before structural changes
 
-Launch **two agents in parallel** to build the refactoring plan:
+Then launch a **verifier** agent (`subagent_type: "verifier"`) to validate the plan. Iterate until APPROVED.
 
-**Agent: Goals Analysis**
-```
-Task: Given the scope analysis from Phase 0 and the refactoring request `$ARGUMENTS`,
-determine and rank the refactoring goals by impact:
-- Readability improvements
-- Performance gains
-- Maintainability wins
-- Duplication removal
-- Abstraction improvements
-For each goal, cite specific locations in the code and explain the expected improvement.
-```
+## Phase 3: Execute Refactoring
 
-**Agent: Pattern Research**
-```
-Task: Read all files in the refactoring scope for `$ARGUMENTS`.
-Identify which standard refactoring patterns apply:
-- Extract Method/Class opportunities (functions >20 lines, classes with >1 responsibility)
-- Rename candidates (names that don't reflect purpose)
-- Duplication (repeated logic across files)
-- Conditional simplification (complex if/else or when chains)
-- Magic value extraction (hard-coded literals)
-For each, specify the exact file, line range, and recommended pattern.
-```
+**Independent steps** (touching different files with no dependency): launch ALL simultaneously as worktree-isolated **elite-fullstack-architect** agents, then merge via the **consolidator**.
 
-**Wait for both agents to complete.**
+**Sequential steps** (each depends on the previous): execute one at a time:
 
-### 2.2 Build Step Plan
-
-Using the outputs from both agents, break the refactoring into small, safe steps:
-- Each step must be independently committable
-- Each step must keep tests green
-- Prefer many small changes over few large ones
-- Order steps so that renames and moves come before structural changes
-
-Write plan to `.claude/plans/PLAN-refactor-<slug>.md`
-
-## Phase 3: Incremental Refactoring
-
-For each step in the plan:
+For each step:
 
 ### 3.1 Make One Change
 
@@ -176,84 +149,13 @@ Skill(skill="skills:commit", args="(refactor): [specific change made]")
 
 Continue with next step until refactoring complete.
 
-## Phase 4: Parallel Review
+## Phase 4: Review
 
-Launch **three agents in parallel** for comprehensive review:
+Launch a **code-griller** agent (`subagent_type: "code-griller"`) to review the full diff (`git diff main...HEAD`). Focus: behavior preservation, no accidental API changes, code quality improvement. Fix any critical/major issues found.
 
-**Agent: Code Review**
-```
-Task: Review all changes made during this refactoring session using `git diff main...HEAD`.
-Evaluate:
-- Is all original behavior preserved?
-- Is the code measurably better (readability, structure, performance)?
-- Are there any accidental behavioral changes?
-- Do all public APIs remain unchanged (unless the change was intentional)?
-- Are there any regressions in code quality?
-Report issues as a numbered list with file path, line number, and description.
-```
+## Phase 5: Final Verification
 
-**Agent: Test Suite**
-```
-Task: Run the full test suite.
-Run `./gradlew test`.
-Report pass/fail counts and list any failures with full stack traces.
-Confirm test count has not decreased compared to the baseline from Phase 0.
-```
-
-**Agent: Lint**
-```
-Task: Run lint and format checks.
-Run `./gradlew ktlintFormat` then `./gradlew ktlintCheck`.
-Report any remaining lint violations with file path and description.
-```
-
-**Wait for all three agents to complete.**
-
-If any agent reports failures or issues:
-- Fix every reported problem
-- Re-run the failing agent's checks to confirm resolution
-- Repeat until all three agents report clean
-
-### 4.1 Compare Before/After
-
-```bash
-# See full diff from start
-git diff main...HEAD
-```
-
-Verify:
-- No public API changes (unless intended)
-- No behavior changes
-- Tests still cover the same scenarios
-
-## Phase 5: Parallel Final Verification
-
-Launch **three agents in parallel** for final confirmation:
-
-**Agent: Final Tests**
-```
-Task: Run the full test suite one final time.
-Run `./gradlew test`.
-Report pass/fail counts. ALL tests must pass.
-```
-
-**Agent: Final Lint**
-```
-Task: Run final lint verification.
-Run `./gradlew ktlintFormat` then `./gradlew ktlintCheck`.
-Confirm zero violations.
-```
-
-**Agent: Final Build**
-```
-Task: Run a clean build to verify compilation.
-Run `./gradlew build`.
-Report success or failure with any error details.
-```
-
-**Wait for all three agents to complete. ALL must report success.**
-
-If any agent fails, fix the issue and re-run all three agents in parallel again.
+Launch a **verifier** agent (`subagent_type: "verifier"`) in post-verification mode. It confirms: tests pass (count not decreased from baseline), lint clean, build succeeds, no behavior changes, all public APIs preserved.
 
 ## Common Refactoring Patterns
 

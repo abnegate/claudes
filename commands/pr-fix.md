@@ -82,7 +82,7 @@ Partition diagnosed failures into groups by root cause. Use the **consolidation 
 3. Make minimal, focused changes
 4. Commit before finishing
 
-**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches.
+**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches. Then launch a **verifier** agent (`subagent_type: "verifier"`) to confirm tests pass.
 
 #### 3c. Commit and Push
 
@@ -126,7 +126,7 @@ Launch each comment group as a parallel worktree-isolated agent (`isolation: "wo
 3. Verify the fix is consistent with surrounding code
 4. Commit before finishing
 
-**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches.
+**After all worktree agents complete**, launch the **consolidator** agent (`subagent_type: "consolidator"`) to merge all branches. Then launch a **verifier** agent (`subagent_type: "verifier"`) to confirm tests pass.
 
 #### 4c. Commit and Push
 

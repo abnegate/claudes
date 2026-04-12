@@ -62,62 +62,27 @@ If the issue is ambiguous:
 - Add clarification as comment to Linear issue
 - Do NOT proceed with assumptions
 
-## Phase 1: Plan Implementation (Parallel Exploration)
+## Phase 1: Orchestrate
 
-Before creating the plan, launch parallel exploration agents for each module or area that will be affected:
+Spawn the **orchestrator** agent which runs the full cycle:
 
-**For each affected module**, launch a parallel agent to:
-- Read the key files in that module
-- Understand its public API and internal structure
-- Identify test patterns already in use
-- Note dependencies and coupling points
-
-Once all exploration agents complete, synthesize findings into the implementation plan:
-
-1. Create implementation plan based on issue requirements and exploration results
-2. Write plan to `.claude/plans/PLAN-${ISSUE_ID}.md`
-3. Break into phases with tests, informed by actual codebase patterns discovered
-
-## Phase 2: Execute Plan
-
-Delegate to `/skills:implement` workflow which handles its own parallelization:
-- TDD for each phase
-- Code review with code-griller
-- Fix all issues
-- Update plan file as phases complete
-
-## Phase 3: Finalize (Parallel Verification + PR)
-
-Launch FOUR parallel agents simultaneously:
-
-**Agent 1 — Run Tests**:
-```bash
-./gradlew test
 ```
-Report pass/fail status and any failures.
-
-**Agent 2 — Run Lint**:
-```bash
-./gradlew ktlintCheck
+Agent({
+  description: "Implement: ${ISSUE_ID}",
+  subagent_type: "orchestrator",
+  prompt: "## Task\n[issue title and description from Phase 0]\n\n## Acceptance criteria\n[from issue details]\n\n## Constraints\n- TDD: every subtask includes tests\n- Follow project conventions discovered in Phase 0\n\n## Working directory\n[cwd]"
+})
 ```
-Report any lint violations.
 
-**Agent 3 — Run Build**:
-```bash
-./gradlew build
-```
-Report build success or failure.
+The orchestrator handles planner → verifier → parallel architects → consolidator → code-griller → verifier.
 
-**Agent 4 — Prepare PR Content**:
-While verification runs, draft the PR title, body, and summary by:
-- Reviewing all commits on the branch vs main
-- Summarizing changes made
-- Listing test coverage additions
-- Formatting the PR body with issue link
+## Phase 2: Finalize (PR)
 
-### 3.1 Handle Verification Failures
+After the orchestrator completes, prepare the PR in parallel with a final verification:
 
-If any verification agent reports failures, fix them before proceeding. Re-run only the failed checks after fixing.
+**Agent 1 — Verifier** (`subagent_type: "verifier"`): Post-verification — tests, lint, build.
+
+**Agent 2 — PR Content**: Draft PR title, body, and summary from commits on the branch.
 
 ### 3.2 Create PR Linked to Issue
 
