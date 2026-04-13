@@ -56,6 +56,7 @@
 
 ## Workflow
 
+- When executing a loaded skill, treat each numbered step as a checklist — execute them in order, do not skip. Before running any command, verify it matches what the loaded skill specifies, not what you recall the command should be. Skills are specifications, not suggestions.
 - For any non-trivial implementation task, use the **orchestrator** agent which runs the full cycle: planner → verifier → parallel architects (worktrees) → consolidator → reviewer → verifier. For independent lightweight work (research, linting, testing), launch concurrent subagents in a single message. Sequential execution of independent work is unacceptable.
 - Never revert PR changes to work around missing dependencies. Add the dependency properly (e.g. as a VCS repository in `composer.json`).
 - Never use shims or patch files for local dependencies. Edit source in the dependency repo, commit and push, then run the package manager update in the consuming repo.
