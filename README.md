@@ -66,7 +66,7 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 | **pr-fix** | `/pr-fix <url>` | Fix failing CI checks and address PR comments |
 | **issue** | `/issue <issue-id>` | Implement a Linear issue end-to-end using the orchestrator cycle |
 | **hotfix** | `/hotfix <description>` | Emergency hotfix workflow for production issues |
-| **release** | `/release [version] [branch]` | Create a GitHub release with auto-generated changelog |
+| **release** | `/release [version] [branch]` | Create a GitHub release with grouped changelog |
 | **orchestrate** | `/orchestrate <description>` | End-to-end feature workflow — branch, implement, improve, PR, wait, pr-fix |
 
 ### Development
@@ -83,7 +83,7 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| **improve** | `/improve [cycles]` | Review and improve code — fix bugs, harden security, optimize performance, improve readability |
+| **improve** | `/improve [cycles]` | Review and fix code across 6 dimensions — security, performance, correctness, readability, maintainability, testing |
 | **review** | `/review` | Read-only code review of current branch against main |
 | **cleanup** | `/cleanup [module\|all]` | Remove dead code, unused imports, and technical debt |
 | **debug** | `/debug <error>` | Debug and fix failing tests or errors |
@@ -93,8 +93,10 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
+| **continue** | `/continue [context]` | Pick up unfinished work from where the last session left off |
 | **history** | `/history <query>` | Search Claude Code conversation history on disk |
 | **profile** | `/profile` | Build a developer profile from git activity and session history |
+| **readme** | `/readme` | Assess the codebase and update the README with any new or outdated information |
 
 ## Skills
 
@@ -112,6 +114,18 @@ Reference guides loaded by Claude on demand. These are not user-invocable — Cl
 | **database-design** | Schema design, optimization, migrations for PostgreSQL, MySQL, NoSQL |
 | **frontend-design** | Create distinctive, production-grade UIs that avoid generic AI aesthetics |
 | **react-best-practices** | React hooks, component patterns, state management, performance optimization |
+
+## User Config
+
+The `user/` directory contains personal configuration that gets symlinked to `~/.claude/`:
+
+| File | Purpose |
+|------|---------|
+| `user/settings.json` | Symlink to `~/.claude/settings.json` — plugin settings and hooks |
+| `user/CLAUDE.md` | Symlink to `~/.claude/CLAUDE.md` — global instructions for all projects |
+| `user/hooks/format.sh` | Post-edit formatter hook — auto-formats PHP, JS/TS, Kotlin, Rust after Write/Edit |
+| `user/hooks/pre-commit.sh` | Pre-commit hook — formats all staged files before git commit |
+| `user/hooks/detect-failure.sh` | Failure detection hook — injects fix directive when test/build/lint fails |
 
 ## Adding to Projects
 
