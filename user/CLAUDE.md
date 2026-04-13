@@ -54,6 +54,12 @@
 - Prefer `/loop` for tasks that require monitoring or iteration — waiting for CI, polling for changes, iterating on review cycles.
 - After completing a fix or implementation, always verify by running the relevant tests/build/lint before reporting success. "I made the change" is not done — "the change passes all checks" is done.
 
+## Pull Requests & Merging
+
+- Never merge a PR (in any repo) without all CI checks passing first. No `--admin`, no `--auto` to skip checks. Wait for green CI, then merge. Use `/loop` to monitor if needed.
+- This applies especially to cross-repo dependency fixes: if a fix is in a base repo (server-ce, utopia-php/*), wait for that repo's CI to pass before merging and propagating (`composer update`) to upstream repos (cloud, edge, console).
+- Only bypass CI checks if explicitly instructed to do so for a specific PR.
+
 ## Workflow
 
 - When executing a loaded skill, treat each numbered step as a checklist — execute them in order, do not skip. Before running any command, verify it matches what the loaded skill specifies, not what you recall the command should be. Skills are specifications, not suggestions.
