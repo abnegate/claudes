@@ -94,7 +94,7 @@ Fix directly, verify, commit.
 Launch an **architect** agent to complete the work, then verify.
 
 **If complex (cross-cutting, multiple domains):**
-Spawn the **orchestrator** (`subagent_type: "orchestrator"`) with the remaining work plan.
+Invoke the **consolidation** skill (`Skill(skill="skills:consolidation", args="...")`) with the remaining work plan. You become the conductor and dispatch the planner → verifier → parallel architects → consolidator → reviewer → verifier cycle.
 
 ## Phase 5: Verify & Commit
 

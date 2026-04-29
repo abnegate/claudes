@@ -79,19 +79,15 @@ Record the choice as `CYCLES=N` and state the rationale in one sentence before p
 
 ## Step 4: Implement the Feature
 
-Spawn the **orchestrator** agent which runs the full cycle (planner → verifier → parallel architects → consolidator → reviewer → verifier):
+Invoke the **consolidation** skill, which loads the full orchestration cycle (planner → verifier → parallel architects → consolidator → reviewer → verifier) into your context. You become the conductor and dispatch each stage:
 
 ```
-Agent({
-  description: "Orchestrate: [feature summary]",
-  subagent_type: "orchestrator",
-  prompt: "## Task\n$ARGUMENTS\n\n## Constraints\n- TDD where project has tests\n- Follow project conventions\n- Commit logically-grouped changes\n- No TODOs, no placeholders\n\n## Working directory\n[cwd]"
-})
+Skill(skill="skills:consolidation", args="## Task\n$ARGUMENTS\n\n## Constraints\n- TDD where project has tests\n- Follow project conventions\n- Commit logically-grouped changes\n- No TODOs, no placeholders\n\n## Working directory\n[cwd]")
 ```
 
-The orchestrator handles decomposition, parallel execution, consolidation, review, and verification internally. It replaces the old pattern of a single architect + separate improve cycles.
+This replaces the old pattern of a single architect + separate improve cycles. The skill runs in *your* context because subagents cannot spawn further subagents — you do the dispatching.
 
-After the orchestrator returns, verify:
+After the cycle finishes, verify:
 ```bash
 git status
 git log "$BASE"..HEAD --oneline
@@ -101,13 +97,13 @@ If the working tree is dirty (uncommitted changes), commit them before moving on
 
 ## Step 5: Run improve (optional additional cycles)
 
-If the complexity assessment calls for additional review cycles beyond what the orchestrator performed, invoke improve:
+If the complexity assessment calls for additional review cycles beyond what the consolidation cycle performed, invoke improve:
 
 ```
 Skill(skill="skills:improve", args="$REMAINING_CYCLES")
 ```
 
-For most tasks the orchestrator's built-in reviewer + verifier cycle is sufficient. Only run additional improve cycles for Big/Huge features.
+For most tasks the consolidation skill's built-in reviewer + verifier cycle is sufficient. Only run additional improve cycles for Big/Huge features.
 
 ## Step 6: Run pr
 

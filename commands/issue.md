@@ -64,21 +64,17 @@ If the issue is ambiguous:
 
 ## Phase 1: Orchestrate
 
-Spawn the **orchestrator** agent which runs the full cycle:
+Invoke the **consolidation** skill, which loads the full orchestration cycle into your context. You become the conductor and dispatch each stage:
 
 ```
-Agent({
-  description: "Implement: ${ISSUE_ID}",
-  subagent_type: "orchestrator",
-  prompt: "## Task\n[issue title and description from Phase 0]\n\n## Acceptance criteria\n[from issue details]\n\n## Constraints\n- TDD: every subtask includes tests\n- Follow project conventions discovered in Phase 0\n\n## Working directory\n[cwd]"
-})
+Skill(skill="skills:consolidation", args="## Task\n[issue title and description from Phase 0]\n\n## Acceptance criteria\n[from issue details]\n\n## Constraints\n- TDD: every subtask includes tests\n- Follow project conventions discovered in Phase 0\n\n## Working directory\n[cwd]")
 ```
 
-The orchestrator handles planner → verifier → parallel architects → consolidator → reviewer → verifier.
+The cycle runs planner → verifier → parallel architects → consolidator → reviewer → verifier in *your* context (subagents cannot spawn further subagents — you do the dispatching).
 
 ## Phase 2: Finalize (PR)
 
-After the orchestrator completes, prepare the PR in parallel with a final verification:
+After the cycle completes, prepare the PR in parallel with a final verification:
 
 **Agent 1 — Verifier** (`subagent_type: "verifier"`): Post-verification — tests, lint, build.
 

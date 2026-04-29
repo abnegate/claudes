@@ -31,10 +31,10 @@ With symlinks, commands are invoked without the namespace prefix (`/commit`, `/p
 
 ## Agents
 
-Specialized agents that form a structured execution cycle. The **orchestrator** is the entry point — it coordinates the others automatically for non-trivial tasks.
+Specialized agents that form a structured execution cycle. The cycle is conducted by the top-level agent (you, in Claude Code) via the **consolidation** skill — subagents cannot spawn further subagents, so the conductor role lives in the user-facing context.
 
 ```
-orchestrator
+[top-level agent — consolidation skill loaded]
   -> planner        (decompose task into subtasks)
   -> verifier       (validate plan correctness + efficiency)
   -> architects     (parallel worktree execution)
@@ -45,7 +45,6 @@ orchestrator
 
 | Agent | Model | Role |
 |-------|-------|------|
-| **orchestrator** | Opus | Conducts the full cycle — entry point for any non-trivial task |
 | **planner** | Opus | Decomposes tasks into smallest work units, maps dependencies and parallelism |
 | **verifier** | Opus | Validates plans pre-execution and confirms outcomes post-execution |
 | **architect** | Opus | Implements code in worktree isolation — production-ready, any tech stack |
@@ -64,7 +63,7 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 | **commit-all** | `/commit-all` | Create git commits in logical groups for all current changes |
 | **pr** | `/pr [title]` | Commit pending changes, push, and create a pull request |
 | **pr-fix** | `/pr-fix <url>` | Fix failing CI checks and address PR comments |
-| **issue** | `/issue <issue-id>` | Implement a Linear issue end-to-end using the orchestrator cycle |
+| **issue** | `/issue <issue-id>` | Implement a Linear issue end-to-end using the consolidation cycle |
 | **hotfix** | `/hotfix <description>` | Emergency hotfix workflow for production issues |
 | **release** | `/release [version] [branch]` | Create a GitHub release with grouped changelog |
 | **orchestrate** | `/orchestrate <description>` | End-to-end feature workflow — branch, implement, improve, PR, wait, pr-fix |
@@ -73,7 +72,7 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
-| **implement** | `/implement <feature>` | TDD feature implementation via the orchestrator cycle |
+| **implement** | `/implement <feature>` | TDD feature implementation via the consolidation cycle |
 | **refactor** | `/refactor <target>` | Safe refactoring with planner, parallel worktrees, and verification |
 | **build** | `/build [target]` | Build project (auto-detects build system) |
 | **install** | `/install [--device <target>]` | Install app on device/emulator (auto-detects platform) |
@@ -104,7 +103,7 @@ Reference guides loaded by Claude on demand. These are not user-invocable — Cl
 
 | Skill | Description |
 |-------|-------------|
-| **consolidation** | The full agent cycle — orchestrator, planner, verifier, architects, consolidator, reviewer |
+| **consolidation** | The full orchestration cycle — loads planner → verifier → parallel architects → consolidator → reviewer → verifier into the top-level agent's context |
 | **kotlin-expert** | Kotlin 2.x/K2/KMP — context parameters, coroutine pitfalls, scope functions, delegation, sealed types, DSLs |
 | **android-expert** | Jetpack Compose + MVI house rules — contract pattern, Koin, Nav3, strong skipping, testing scaffold |
 | **php-expert** | PHP 8.3+ house rules — typed constants, enums, exceptions, PHPUnit 12, Pint/PHPStan/Rector |

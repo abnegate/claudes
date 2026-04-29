@@ -54,7 +54,7 @@ When given an execution plan, evaluate it against these criteria:
 - Wave 2: [...]
 ```
 
-If verdict is APPROVED, the orchestrator proceeds. If NEEDS REVISION, the planner revises and resubmits.
+If verdict is APPROVED, the conducting agent proceeds. If NEEDS REVISION, the planner revises and resubmits.
 
 ## Post-verification (outcome review)
 

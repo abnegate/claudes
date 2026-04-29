@@ -26,31 +26,29 @@ Use `AskUserQuestion` to gather any missing information. Do NOT proceed with amb
 
 ## Phase 1: Orchestrate
 
-Spawn the **orchestrator** agent which runs the full cycle automatically:
+Invoke the **consolidation** skill, which loads the full orchestration cycle into your context. You become the conductor and dispatch each stage:
 
 ```
-Agent({
-  description: "Implement: [feature summary]",
-  subagent_type: "orchestrator",
-  prompt: "## Task\n[full feature description from $ARGUMENTS]\n\n## Acceptance criteria\n[from Phase 0]\n\n## Constraints\n- TDD: write failing tests before implementation for every subtask\n- Every subtask must include its own tests\n- Follow project conventions\n\n## Working directory\n[cwd]"
-})
+Skill(skill="skills:consolidation", args="## Task\n[full feature description from $ARGUMENTS]\n\n## Acceptance criteria\n[from Phase 0]\n\n## Constraints\n- TDD: write failing tests before implementation for every subtask\n- Every subtask must include its own tests\n- Follow project conventions\n\n## Working directory\n[cwd]")
 ```
 
-The orchestrator handles:
+The cycle handles:
 1. **Planner** — decomposes the feature into subtasks, maps files and dependencies
 2. **Verifier** — validates the plan for correctness and efficiency
 3. **Parallel architects** — execute subtasks in worktrees (each doing TDD red-green-refactor)
 4. **Consolidator** — merges all branches, resolves overlaps, wires integration points
-5. **Code-griller** — reviews the merged output, fixes are applied
+5. **Reviewer** — reviews the merged output, fixes are applied
 6. **Verifier** — confirms all acceptance criteria are met, tests pass, lint clean
+
+The skill runs in *your* context because subagents cannot spawn further subagents — you do the dispatching.
 
 ## Phase 2: Commit
 
-After the orchestrator completes, delegate to `skills:commit` (or `skills:commit-all` if multiple logical groups).
+After the cycle completes, delegate to `skills:commit` (or `skills:commit-all` if multiple logical groups).
 
 ## Completion Criteria
 
-The orchestrator's verifier confirms these before the cycle ends, but double-check:
+The cycle's final verifier confirms these before it ends, but double-check:
 
 1. ALL tests pass
 2. Code is reviewed (reviewer) and issues addressed
@@ -61,7 +59,7 @@ The orchestrator's verifier confirms these before the cycle ends, but double-che
 ## Hard Rules
 
 1. **NO STOPPING MID-FEATURE** — complete the entire task
-2. **NO SKIPPING TESTS** — TDD is mandatory (communicated to orchestrator)
+2. **NO SKIPPING TESTS** — TDD is mandatory (communicated via skill args)
 3. **NO PLACEHOLDERS** — implement fully or don't start
 4. **ASK QUESTIONS EARLY** — don't guess requirements (Phase 0)
 5. **NO "PRE-EXISTING" EXCUSES** — if any test fails, fix it. Always complete with passing tests.
