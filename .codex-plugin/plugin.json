@@ -1,0 +1,38 @@
+{
+  "name": "skills",
+  "version": "3.0.1",
+  "description": "Personal coding skills, workflow commands, and agents shared across Claude Code and Codex.",
+  "author": {
+    "name": "Jake Barnby",
+    "url": "https://github.com/abnegate"
+  },
+  "homepage": "https://github.com/abnegate/claudes",
+  "repository": "https://github.com/abnegate/claudes",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "workflow",
+    "android",
+    "kotlin",
+    "review"
+  ],
+  "skills": "./codex/skills/",
+  "interface": {
+    "displayName": "Claudes",
+    "shortDescription": "Personal coding skills and workflow commands",
+    "longDescription": "A shared Claude Code and Codex plugin with reusable engineering skills, workflow command adapters, and multi-agent prompt references.",
+    "developerName": "Jake Barnby",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/abnegate/claudes",
+    "defaultPrompt": [
+      "Use Claudes for Android, Kotlin, backend, or workflow guidance",
+      "Run the shared implement workflow",
+      "Apply the consolidation workflow for non-trivial code changes"
+    ],
+    "brandColor": "#2563EB"
+  }
+}

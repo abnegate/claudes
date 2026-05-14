@@ -1,0 +1,1 @@
+../../../commands/commit-all.md
