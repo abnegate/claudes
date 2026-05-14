@@ -1,4 +1,5 @@
 ---
+name: improve
 description: Review and improve code — fix bugs, harden security, optimize performance, improve readability and maintainability
 argument-hint: "[cycles=1]"
 ---

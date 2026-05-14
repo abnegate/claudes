@@ -1,4 +1,5 @@
 ---
+name: pr-fix
 description: Fix failing CI checks on a pull request
 argument-hint: <url> [comments=true|false] [checks=true|false]
 ---

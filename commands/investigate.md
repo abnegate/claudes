@@ -1,4 +1,5 @@
 ---
+name: investigate
 description: Deep investigation of bugs, performance issues, or unexpected behavior
 argument-hint: "<issue-to-investigate>"
 ---

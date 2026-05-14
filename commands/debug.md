@@ -1,4 +1,5 @@
 ---
+name: debug
 description: Debug and fix failing tests or errors
 argument-hint: "<test-name|error-description|stack-trace>"
 ---

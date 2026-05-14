@@ -1,4 +1,5 @@
 ---
+name: orchestrate
 description: End-to-end feature workflow - branch, implement, improve, PR, wait, pr-fix
 argument-hint: <feature description>
 ---

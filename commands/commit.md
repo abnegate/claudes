@@ -1,4 +1,5 @@
 ---
+name: commit
 description: Create a git commit with conventional commit message
 argument-hint: "[message]"
 ---

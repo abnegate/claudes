@@ -1,4 +1,5 @@
 ---
+name: review
 description: Thorough code review of current branch against main
 ---
 

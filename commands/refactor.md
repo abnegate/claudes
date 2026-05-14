@@ -1,4 +1,5 @@
 ---
+name: refactor
 description: Safe refactoring with comprehensive test coverage
 argument-hint: "<what-to-refactor>"
 ---

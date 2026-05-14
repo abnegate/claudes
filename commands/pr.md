@@ -1,4 +1,5 @@
 ---
+name: pr
 description: Commit pending changes, push, and create a pull request with proper description
 argument-hint: "[title]"
 ---

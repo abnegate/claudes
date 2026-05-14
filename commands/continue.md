@@ -1,4 +1,5 @@
 ---
+name: continue
 description: Pick up unfinished work from where the last session left off
 argument-hint: "[task description or context]"
 ---

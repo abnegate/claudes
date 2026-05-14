@@ -1,4 +1,5 @@
 ---
+name: commit-all
 description: Create git commits in logical groups for all current changes
 ---
 

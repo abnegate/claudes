@@ -1,4 +1,5 @@
 ---
+name: issue
 description: Implement a Linear issue end-to-end
 argument-hint: <issue-id>
 ---

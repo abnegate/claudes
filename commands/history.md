@@ -1,4 +1,5 @@
 ---
+name: history
 description: Search Claude Code conversation history on disk for a given query. Use when the user asks to find something from a previous conversation, check what was discussed before, or recover lost context.
 ---
 
