@@ -1,6 +1,6 @@
 {
   "name": "skills",
-  "version": "4.0.3",
+  "version": "4.0.4",
   "description": "Personal coding skills, workflow commands, and agents shared across Claude Code and Codex.",
   "author": {
     "name": "Jake Barnby",
@@ -16,7 +16,7 @@
     "kotlin",
     "review"
   ],
-  "skills": "./codex/skills/",
+  "skills": "./skills/",
   "interface": {
     "displayName": "Claudes",
     "shortDescription": "Personal coding skills and workflow commands",

@@ -1,1 +1,0 @@
-../../../commands/hotfix.md
