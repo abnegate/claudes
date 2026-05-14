@@ -3,7 +3,7 @@
   "owner": { "name": "Jake Barnby" },
   "metadata": {
     "description": "Personal Claude Code skills and agents for global use across all projects",
-    "version": "4.0.2"
+    "version": "4.0.3"
   },
   "plugins": [
     {
