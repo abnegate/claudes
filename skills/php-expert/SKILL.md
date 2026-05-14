@@ -1,6 +1,6 @@
 ---
 name: php-expert
-description: House rules and load-bearing patterns for writing production PHP 8.3+ code. Covers the PHP version landscape (what's EOL / security / active as of April 2026), the specific house naming and style rules (singular namespaces, camelCase acronyms for SDK generation, no doubled-up filenames, imports ordering, single quotes, sparse updates, fix-nearby-violations discipline), typed class constants with `public const string`, mandatory `#[\Override]`, PHP 8.4 feature gotchas (property hook limitations, asymmetric visibility, `new Foo()->bar()`, `array_find`/`array_any`/`array_all`), `declare(strict_types=1)` match-the-repo rule, Composer constraint-style discipline and deploy flags, exact Pint + PHPStan + Rector configs, the typed exception pattern with `public const string` error codes and public readonly context fields, PHPUnit 12 testing discipline (unit vs e2e layout, no mocking the database, mandatory regression tests for bug fixes), and house-specific anti-patterns. **Does not** re-teach elementary PHP 8.0–8.2 syntax (promotion, readonly, enums, match, nullsafe, named args) — assume that baseline. Framework-specific patterns live in their own skills. Use when writing or reviewing any PHP 8.3+ code.
+description: Production PHP 8.3+ house rules for naming, style, typed constants, Override attributes, PHP 8.4 gotchas, strict types, Composer constraints, exceptions, PHPUnit, and anti-patterns. Use when writing or reviewing PHP code.
 ---
 
 # PHP Expert

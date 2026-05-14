@@ -1,6 +1,6 @@
 ---
 name: consolidation
-description: The full parallel execution cycle for non-trivial implementation tasks. You — the top-level agent — become the conductor: decompose work via the planner agent, validate via the verifier, execute in parallel worktrees via architect agents, merge via the consolidator, review via the reviewer, and confirm via final verification. Use for any multi-part implementation, refactor, batch operation, or task spanning multiple files. Triggers on phrases like "do this in parallel", "consolidate", "implement this feature", "refactor X", or any task that benefits from structured decomposition.
+description: Full parallel execution cycle for non-trivial implementation tasks. Use for multi-part implementation, refactors, batch operations, or tasks spanning multiple files.
 ---
 
 # Consolidation — the orchestration cycle
