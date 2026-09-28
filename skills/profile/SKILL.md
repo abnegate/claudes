@@ -9,7 +9,7 @@ Build a comprehensive developer profile by combining git commit activity with Cl
 
 ## How it works
 
-A collection script at `scripts/collect.py` in the plugin/repo root scans git repos for commit metadata and reads Claude Code session files from `~/.claude/sessions/`. It outputs a single JSON payload with two top-level sections: `git` and `claude`.
+A collection script at `scripts/collect.py` in the plugin/repo root scans git repos for commit metadata and reads Claude Code session files from `~/.claude/projects/`. It outputs a single JSON payload with two top-level sections: `git` and `claude`.
 
 ## Step 1: Collect the data
 

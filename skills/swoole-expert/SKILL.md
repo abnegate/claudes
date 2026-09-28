@@ -1012,7 +1012,7 @@ PHPStan: add `vendor/swoole/ide-helper/src/swoole/constants.php` to `bootstrapFi
 
 ### swoole/library version alignment
 
-`swoole/library` is bundled into ext-swoole and auto-loaded. Last tagged composer release was **v6.0.2 (2025-03-22)** -- not retagged for 6.1/6.2 despite shipping changes inside the extension. **If you `composer require swoole/library`, you get v6.0.2.** Treat the extension as source of truth for library classes in production.
+`swoole/library` is bundled into ext-swoole and auto-loaded. Composer releases are tagged for 6.1 and 6.2 (latest v6.2.3 as of 2026-09), so `composer require swoole/library` resolves to 6.2.x. Treat the extension as source of truth for library classes in production.
 
 ---
 

@@ -10,19 +10,19 @@ Search through Claude Code conversation history JSONL files for the given query.
 ## Instructions
 
 1. Identify the project history directory. For the current working directory, the history path is:
-   `~/.claude/projects/<project-key>/.history/`
+   `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/<project-key>/`
    
-   The project key is derived from the working directory path with slashes replaced by dashes. For example:
+   The project key is derived from the working directory path with slashes and dots replaced by dashes. For example:
    - `/Users/jakebarnby/Local/sshoo` → `-Users-jakebarnby-Local-sshoo`
    
-   List `.history/*.jsonl` files sorted by modification time (newest first):
+   List `*.jsonl` session files sorted by modification time (newest first):
    ```bash
-   ls -t ~/.claude/projects/<project-key>/.history/*.jsonl
+   ls -t "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/<project-key>/*.jsonl
    ```
 
 2. Search the JSONL files for the user's query using grep:
    ```bash
-   grep -l "<query>" ~/.claude/projects/<project-key>/.history/*.jsonl
+   grep -l "<query>" "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/<project-key>/*.jsonl
    ```
    
    Then for matching files, extract surrounding context:
@@ -51,9 +51,9 @@ Search through Claude Code conversation history JSONL files for the given query.
 ## Arguments
 
 The user's search query is passed as the skill argument. For example:
-- `/history? dependabot` — search for dependabot-related discussions
-- `/history? billing UI revert` — search for when billing UI was reverted
-- `/history? "libs.versions.toml"` — search for dependency version discussions
+- `/history dependabot` — search for dependabot-related discussions
+- `/history billing UI revert` — search for when billing UI was reverted
+- `/history "libs.versions.toml"` — search for dependency version discussions
 
 ## Tips
 

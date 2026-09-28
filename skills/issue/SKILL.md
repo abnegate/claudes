@@ -81,9 +81,9 @@ After the cycle completes, prepare the PR in parallel with a final verification:
 
 **Agent 2 — PR Content**: Draft PR title, body, and summary from commits on the branch.
 
-### 3.2 Create PR Linked to Issue
+### 2.1 Create PR Linked to Issue
 
-Using the PR content prepared by Agent 4 (adjusted if fixes were needed):
+Using the PR content prepared by Agent 2 (adjusted if fixes were needed):
 
 ```bash
 gh pr create --title "(feat): ${ISSUE_TITLE}" --body "$(cat <<EOF
@@ -103,14 +103,14 @@ EOF
 )"
 ```
 
-### 3.3 Update Linear Issue
+### 2.2 Update Linear Issue
 
 Via Linear MCP:
 1. Add comment with PR link
 2. Update status to "In Review"
 3. Link the PR to the issue
 
-## Phase 4: Post-Merge
+## Phase 3: Post-Merge
 
 After PR is merged:
 1. Move Linear issue to "Done"
@@ -122,5 +122,4 @@ After PR is merged:
 - [ ] All tests pass
 - [ ] Code reviewed and issues fixed
 - [ ] PR created and linked to issue
-- [ ] Plan file marked complete
 - [ ] Linear issue updated with progress

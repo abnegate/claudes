@@ -104,11 +104,11 @@ Reference guides loaded by Claude on demand. These are not user-invocable — Cl
 | Skill | Description |
 |-------|-------------|
 | **consolidation** | The full orchestration cycle — loads planner → verifier → parallel architects → consolidator → reviewer → verifier into the top-level agent's context |
-| **kotlin-expert** | Kotlin 2.x/K2/KMP — context parameters, coroutine pitfalls, scope functions, delegation, sealed types, DSLs |
+| **kotlin-expert** | Kotlin 2.x/K2/KMP — K2 migration, context parameters and other 2.x features, KMP expect/actual, house naming rules |
 | **android-expert** | Jetpack Compose + MVI house rules — contract pattern, Koin, Nav3, strong skipping, testing scaffold |
 | **php-expert** | PHP 8.3+ house rules — typed constants, enums, exceptions, PHPUnit 12, Pint/PHPStan/Rector |
 | **swoole-expert** | Swoole 5.x/6.x — coroutines, runtime hooks, servers, connection pooling, pitfalls, 6.x API changes |
-| **docker-expert** | Docker/Compose — multi-stage builds, Swoole containers, BuildKit, security, signal handling, CI/CD |
+| **docker-expert** | Swoole-specific Docker/Compose — PHP+Swoole multi-stage builds, opcache tuning, PID 1 + graceful shutdown, healthchecks, memory budgeting |
 | **backend-development** | Backend API design, database architecture, microservices patterns, TDD |
 | **database-design** | Schema design, optimization, migrations for PostgreSQL, MySQL, NoSQL |
 | **frontend-design** | Create distinctive, production-grade UIs that avoid generic AI aesthetics |
@@ -122,9 +122,6 @@ The `user/` directory contains personal configuration that gets symlinked to `~/
 |------|---------|
 | `user/settings.json` | Symlink to `~/.claude/settings.json` — plugin settings and hooks |
 | `user/CLAUDE.md` | Symlink to `~/.claude/CLAUDE.md` — global instructions for all projects |
-| `user/hooks/format.sh` | Post-edit formatter hook — auto-formats PHP, JS/TS, Kotlin, Rust after Write/Edit |
-| `user/hooks/pre-commit.sh` | Pre-commit hook — formats all staged files before git commit |
-| `user/hooks/detect-failure.sh` | Failure detection hook — injects fix directive when test/build/lint fails |
 
 ## Adding to Projects
 
