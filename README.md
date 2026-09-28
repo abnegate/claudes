@@ -40,13 +40,15 @@ Profiles copied from `~/.claude` share its marketplace clone: their `known_marke
 
 ## Agents
 
-Specialized agents that form a structured execution cycle. The cycle is conducted by the top-level agent (you, in Claude Code) via the **consolidation** skill — subagents cannot spawn further subagents, so the conductor role lives in the user-facing context.
+Specialized agents that form a structured execution cycle. The **consolidation** skill loads the cycle into the conducting agent's context. The **top-level conductor** (the user-facing session with the skill loaded) conducts by default, dispatching the **stage agents**: planner, verifier, architect, consolidator, reviewer. When the plan splits into independent workstreams, it delegates each one to a **workstream conductor** (the `conductor` agent), which runs the same cycle on its own `ws-<workstream>` integration branch and hands back a Workstream report. Agents spawned by stage agents are **helpers**.
 
 ```
-[top-level agent — consolidation skill loaded]
-  -> planner        (decompose task into subtasks)
+[top-level conductor — consolidation skill loaded]
+  -> planner        (decompose task into subtasks, optionally workstreams)
   -> verifier       (validate plan correctness + efficiency)
   -> architects     (parallel worktree execution)
+     or conductors  (optional: one per workstream, each running this
+                     whole cycle on its own ws-<workstream> branch)
   -> consolidator   (merge all branches)
   -> reviewer       (review merged output)
   -> verifier       (confirm acceptance criteria met)
@@ -54,11 +56,21 @@ Specialized agents that form a structured execution cycle. The cycle is conducte
 
 | Agent | Model | Role |
 |-------|-------|------|
-| **planner** | Opus | Decomposes tasks into smallest work units, maps dependencies and parallelism |
+| **planner** | Opus | Decomposes tasks into smallest work units, maps dependencies, parallelism and workstreams |
 | **verifier** | Opus | Validates plans pre-execution and confirms outcomes post-execution |
-| **architect** | Opus | Implements code in worktree isolation — production-ready, any tech stack |
+| **architect** | Opus | Implements code in its own worktree — production-ready, any tech stack |
+| **conductor** | Opus | Runs the whole cycle for one workstream and hands back a Workstream report |
 | **consolidator** | Opus | Merges parallel worktree branches with intelligent conflict resolution |
 | **reviewer** | Opus | Reviews code for bugs, security, performance, readability, and maintainability |
+
+By default subagents nest up to depth 3 (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`) and at most 20 run at once across the whole session (`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`), so conductors split that concurrency budget and launch larger waves in batches. An agent without the `Agent` tool is at the depth limit and does its stage's work itself.
+
+| Depth | Top-level-only run | Nested run |
+|---|---|---|
+| 0 | top-level conductor | top-level conductor |
+| 1 | stage agents | workstream conductors |
+| 2 | helpers | stage agents |
+| 3 | — | helpers (leaf: no `Agent` tool) |
 
 ## Commands
 
@@ -112,7 +124,7 @@ Reference guides Claude loads automatically when relevant context appears. They 
 
 | Skill | Description |
 |-------|-------------|
-| **consolidation** | The full orchestration cycle — loads planner → verifier → parallel architects → consolidator → reviewer → verifier into the top-level agent's context |
+| **consolidation** | The full orchestration cycle — loads planner → verifier → parallel architects (or workstream conductors) → consolidator → reviewer → verifier into the conducting agent's context |
 | **kotlin-expert** | Kotlin 2.x/K2/KMP — K2 migration, context parameters and other 2.x features, KMP expect/actual, house naming rules |
 | **android-expert** | Jetpack Compose + MVI house rules — contract pattern, Koin, Nav3, strong skipping, testing scaffold |
 | **php-expert** | PHP 8.3+ house rules — typed constants, enums, exceptions, PHPUnit 12, Pint/PHPStan/Rector |
