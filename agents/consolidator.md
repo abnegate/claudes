@@ -15,7 +15,7 @@ Work on the integration worktree from your prompt: run every git command as `git
 
 Execute in this order:
 
-1. Confirm the starting state: `git -C <integration worktree> status --porcelain` is empty and `git -C <integration worktree> log --oneline -5` shows the integration branch.
+1. Confirm the starting state: `git -C <integration worktree> status --porcelain --untracked-files=no` is empty and `git -C <integration worktree> log --oneline -5` shows the integration branch.
 2. For every branch, `git -C <integration worktree> merge-base --is-ancestor <BASE> <branch>` must succeed (the consolidation skill's Worktree BASE protocol). A failure means the branch did not start from BASE: rebase only its own commits onto BASE (`git -C <its worktree> rebase --onto <BASE> <parent of its first own commit>`), or stop and report it.
 3. For each branch (in the order provided):
    a. `git -C <integration worktree> diff <BASE>...<branch> --stat` to see what changed.

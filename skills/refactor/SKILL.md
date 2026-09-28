@@ -62,7 +62,7 @@ Identify and list:
 - Edge cases and error paths
 - Integration points with other modules
 - All direct dependents (files that import or reference the target)
-Write findings to `.claude/plans/PLAN-refactor-scope.md`.
+Return the findings in your report.
 ```
 
 **Wait for all three agents to complete before continuing.**
