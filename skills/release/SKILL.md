@@ -21,7 +21,7 @@ The user provides these in natural language — extract them from the prompt:
 Commits use scoped conventional subjects, `type(scope): subject`:
 
 - **type**: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `style` or `perf`; `ci`, `build` and `revert` are accepted too.
-- **scope** (optional): the area touched, e.g. `fix(auth): handle expired sessions`. Repo-wide changes omit it.
+- **scope** (optional): the area touched, e.g. `fix(auth): handle expired sessions`. Omit it for repo-wide changes.
 - **`!`** right before the colon marks a breaking change: `feat(api)!: remove v1 routes`. So does a `BREAKING CHANGE:` or `BREAKING-CHANGE:` footer at the start of a body line.
 - Legacy subjects in the old `(type): subject` form, e.g. `(feat): add planner agent`, classify the same way: the word in parentheses is the type, and there is no scope.
 - Any other subject (e.g. `Update README`) has no type.
