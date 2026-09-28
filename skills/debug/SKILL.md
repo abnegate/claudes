@@ -16,25 +16,31 @@ Systematically debug and fix failing tests, build errors, or runtime issues usin
 
 ## Phase 1: Reproduce and Gather Context
 
+### 1.1 Detect the Stack
+
+Detect the stack from the first manifest in this table's row order that exists at the repository root. `<pm>` is the package manager chosen by lockfile, as in `/build`. Prefer the project's own scripts or Makefile targets when they exist. When tests run in Docker Compose (Appwrite), run the same command inside the service, for example `docker compose exec <service> vendor/bin/phpunit --filter Name`.
+
+| Manifest | Stack | Test all | Test one | Build | Lint | Format | Static analysis | Coverage |
+|---|---|---|---|---|---|---|---|---|
+| build.gradle.kts / build.gradle | Gradle | `./gradlew test` | `./gradlew test --tests "*Name*"` | `./gradlew build` | `./gradlew ktlintCheck` | `./gradlew ktlintFormat` | `./gradlew detekt` | `./gradlew koverReport` |
+| pom.xml | Maven | `mvn test` | `mvn test -Dtest=Name` | `mvn package` | configured plugin | `mvn spotless:apply` if configured | — | `mvn jacoco:report` if configured |
+| composer.json | PHP | `composer test` | `composer test -- --filter Name` | `composer install` | `composer lint` | `composer format` | `composer check` (PHPStan) | `vendor/bin/phpunit --coverage-text` (PCOV/Xdebug) |
+| package.json | Node | `<pm> test` | `<pm> test -- -t "Name"` | `<pm> run build` | `<pm> run lint` | `<pm> run format` / `npx prettier --write .` | `<pm> exec tsc --noEmit` | `<pm> test -- --coverage` |
+| Cargo.toml | Rust | `cargo test` | `cargo test name` | `cargo build` | `cargo clippy -- -D warnings` | `cargo fmt` | `cargo clippy -- -D warnings` | `cargo llvm-cov` if installed |
+| go.mod | Go | `go test ./...` | `go test -run Name ./...` | `go build ./...` | `go vet ./...` | `gofmt -w .` | `golangci-lint run` if configured | `go test -cover ./...` |
+| pyproject.toml / setup.py | Python | `pytest` | `pytest -k name` | `pip install -e .` | `ruff check .` | `ruff format .` | `mypy .` if configured | `pytest --cov` |
+
+Commands in this skill name a column of this table, for example "the stack's Test one command". Give every agent the detected stack's commands.
+
+### 1.2 Gather Context in Parallel
+
 Launch **three parallel agents** simultaneously to maximize information gathering speed.
 
 **Agent 1 - Reproduce the failure:**
 
-If test failure:
-```bash
-# Run specific test
-./gradlew test --tests "*$ARGUMENTS*" --info
-
-# Or run all tests to find failures
-./gradlew test
-```
-
-If build error:
-```bash
-./gradlew build --stacktrace
-```
-
-If runtime error, get the full stack trace and identify the failing component.
+- Test failure: run the failing test (`$ARGUMENTS`) with the stack's Verbose single test command from Debug Techniques, or the Test all command to find every failure.
+- Build error: run the stack's Build command and capture the complete error output, with stack traces enabled.
+- Runtime error: get the full stack trace and identify the failing component.
 
 Capture all error details: full error message, stack trace, test name and class, file and line number, input that caused the failure.
 
@@ -111,19 +117,11 @@ After implementing the fix, launch **two parallel agents** to verify simultaneou
 
 **Agent 1 - Run the specific failing test:**
 
-```bash
-./gradlew test --tests "*FailingTestName*" --info
-```
-
-Confirm the original failure is resolved. If it still fails, report the new error details.
+Run the stack's Test one command for the failing test. Confirm the original failure is resolved. If it still fails, report the new error details.
 
 **Agent 2 - Run related tests:**
 
-```bash
-./gradlew test --tests "*RelatedModule*"
-```
-
-Confirm no closely related tests have broken as a side effect of the fix.
+Run the stack's Class, file or module command from Debug Techniques for the code the fix touched. Confirm no closely related tests have broken as a side effect of the fix.
 
 **Wait for both agents to complete.** If either agent reports a failure, return to Phase 2 with the new information and repeat. Do not proceed until both pass.
 
@@ -143,12 +141,7 @@ If the review finds issues, fix them before proceeding.
 
 **Agent 2 - Full test suite:**
 
-```bash
-./gradlew test
-./gradlew build
-```
-
-Run the entire test suite and build to catch any regressions anywhere in the codebase.
+Run the stack's Test all and Build commands to catch any regressions anywhere in the codebase.
 
 **Wait for both agents to complete.** If the full suite has failures, fix every one of them (there are no "pre-existing" failures). If the code review raised issues, address them and re-run verification.
 
@@ -159,29 +152,33 @@ If the bug was not caught by existing tests:
 - Add tests for related edge cases
 - Ensure this bug cannot recur
 
-Run the new tests to confirm they pass:
-```bash
-./gradlew test --tests "*NewTestName*"
-```
+Run the new tests with the stack's Test one command to confirm they pass.
 
 ### 4.2 Commit Fix
 
 Delegate to the `skills:commit` command:
 
 ```
-Skill(skill="skills:commit", args="(fix): [description of what was fixed]")
+Skill(skill="skills:commit", args="fix(<scope>): [description of what was fixed]")
 ```
 
 ## Debug Techniques
 
-### For Test Failures
-```bash
-# Run with debug output
-./gradlew test --tests "*TestName*" --info
+Each stack's form for one test with its full output, for a whole class, file or module, and for rerunning a flaky test without a cached result:
 
-# Run single test class
-./gradlew :module:test --tests "com.example.TestClass"
-```
+| Stack | Verbose single test | Class, file or module | Flaky rerun |
+|---|---|---|---|
+| Gradle | `./gradlew test --tests "*Name*" --info` | `./gradlew :module:test --tests "com.example.NameTest"` | `./gradlew cleanTest test --tests "*Name*"` |
+| Maven | `mvn test -Dtest=Name -DtrimStackTrace=false` | `mvn test -pl module -Dtest=NameTest` | `mvn test -Dtest=Name` |
+| PHP | `composer test -- --filter Name` | `composer test -- tests/Path/NameTest.php` | `composer test -- --filter Name` |
+| Node | `<pm> test -- -t "Name"` | `<pm> test -- path/to/name.test.ts` | `<pm> test -- -t "Name"` |
+| Rust | `RUST_BACKTRACE=1 cargo test name -- --nocapture` | `cargo test -p crate module::` | `cargo test name` |
+| Go | `go test -run Name -v ./...` | `go test -v ./path/to/package` | `go test -run Name -count=1 ./...` |
+| Python | `pytest -k name -vv -l` | `pytest tests/test_name.py::TestName` | `pytest -k name` |
+
+### For Test Failures
+
+Run the failing test alone with the stack's Verbose single test command, then widen to its class, file or module.
 
 ### For Null Pointer / Missing Data
 - Check test setup and mocks
@@ -189,14 +186,16 @@ Skill(skill="skills:commit", args="(fix): [description of what was fixed]")
 - Check database state for integration tests
 
 ### For Async / Timing Issues
-- Check coroutine scopes
+- Check the lifetimes and cancellation of coroutines, tasks and promises
 - Look for race conditions
 - Verify test uses proper async testing utilities
 
 ### For Flaky Tests
+
+Run the stack's Flaky rerun command ten times and stop at the first failure:
+
 ```bash
-# Run multiple times
-for i in {1..10}; do ./gradlew test --tests "*FlakyTest*" || break; done
+for run in $(seq 1 10); do <flaky rerun command> || { echo "Failed on run $run"; break; }; done
 ```
 
 ## Test Failure Policy
