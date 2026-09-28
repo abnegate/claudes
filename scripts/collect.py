@@ -45,9 +45,16 @@ GIT_DIRECTORY = '.git'
 COMMIT_LOG_FORMAT = '%H%x00%aI%x00%ae%x00%s'
 STASH_REFERENCE = 'refs/stash'
 COMMIT_FIELD_SEPARATOR = '\x00'
-MODIFIED_STATUSES = (' M', 'M ', 'MM')
-ADDED_STATUSES = ('A ', 'AM')
+STATUS_RECORD_SEPARATOR = '\x00'
 UNTRACKED_STATUS = '??'
+ORIGINAL_PATH_STATUSES = ('R', 'C')
+MODIFIED_CATEGORY = 'modified'
+ADDED_CATEGORY = 'added'
+DELETED_CATEGORY = 'deleted'
+RENAMED_CATEGORY = 'renamed'
+UNTRACKED_CATEGORY = 'untracked'
+STATUS_CATEGORIES = (('R', RENAMED_CATEGORY), ('C', ADDED_CATEGORY), ('A', ADDED_CATEGORY), ('D', DELETED_CATEGORY))
+UNCOMMITTED_CATEGORIES = (MODIFIED_CATEGORY, ADDED_CATEGORY, DELETED_CATEGORY, RENAMED_CATEGORY, UNTRACKED_CATEGORY)
 SUBJECT_PUNCTUATION = '()[]{}.,;:!?"\'-'
 SUBJECT_STOP_WORDS = frozenset({
     'the', 'a', 'an', 'and', 'or', 'to', 'in', 'for', 'of', 'on', 'with', 'is', 'it', 'from', 'by', 'at', 'as', 'this', 'that',
@@ -212,21 +219,12 @@ def collect_repo_context(repo_path: str) -> dict[str, Any]:
 
     try:
         status = subprocess.check_output(
-            ['git', '-C', repo_path, 'status', '--porcelain'],
+            ['git', '-C', repo_path, 'status', '--porcelain', '-z'],
             stderr=subprocess.DEVNULL, text=True
-        ).strip()
-        if status:
-            lines = status.split('\n')
-            modified = [line[3:] for line in lines if line[:2] in MODIFIED_STATUSES]
-            added = [line[3:] for line in lines if line[:2] in ADDED_STATUSES]
-            untracked = [line[3:] for line in lines if line[:2] == UNTRACKED_STATUS]
-            context['uncommitted'] = {}
-            if modified:
-                context['uncommitted']['modified'] = modified
-            if added:
-                context['uncommitted']['added'] = added
-            if untracked:
-                context['uncommitted']['untracked'] = untracked
+        )
+        uncommitted = uncommitted_paths(status)
+        if uncommitted:
+            context['uncommitted'] = uncommitted
     except subprocess.CalledProcessError:
         pass
 
@@ -241,6 +239,25 @@ def collect_repo_context(repo_path: str) -> dict[str, Any]:
         pass
 
     return context
+
+
+def uncommitted_paths(status: str) -> dict[str, list[str]]:
+    paths: defaultdict[str, list[str]] = defaultdict(list)
+    records = iter(status.split(STATUS_RECORD_SEPARATOR))
+    for record in records:
+        code, path = record[:2], record[3:]
+        if not path:
+            continue
+        if any(marker in code for marker in ORIGINAL_PATH_STATUSES):
+            next(records, None)
+        paths[status_category(code)].append(path)
+    return {category: paths[category] for category in UNCOMMITTED_CATEGORIES if category in paths}
+
+
+def status_category(code: str) -> str:
+    if code == UNTRACKED_STATUS:
+        return UNTRACKED_CATEGORY
+    return next((category for marker, category in STATUS_CATEGORIES if marker in code), MODIFIED_CATEGORY)
 
 
 CONVENTIONAL_SUBJECT = r'^(?P<type>[a-z]+)(?:\((?P<scope>[^()\r\n]+)\))?(?P<breaking>!)?: '

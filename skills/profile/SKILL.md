@@ -75,7 +75,7 @@ The JSON output has two top-level keys: `git` and `claude`. Use **both** to buil
 #### Repo context (`repo_context`)
 - **branch**: Current branch name — reveals active work.
 - **recent_subjects**: Last 20 commit subjects — summarize themes in plain language.
-- **uncommitted**: Modified/untracked files — hints at active WIP.
+- **uncommitted**: modified, added, deleted, renamed and untracked paths — hints at active WIP.
 
 ### Claude section (`claude`)
 

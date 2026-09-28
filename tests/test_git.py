@@ -142,6 +142,33 @@ class GitTest(unittest.TestCase):
         self.assertEqual(git['summary']['total_commits'], 2)
         self.assertEqual(git['by_repo'], {'tool': 2})
 
+    def test_uncommitted_paths_keep_every_status(self) -> None:
+        repository = self.repository('zone')
+        for name in ('f1', 'f2', 'f3', 'kept.txt', 'old name'):
+            (repository / name).write_text(f'{name}\n', encoding='utf-8')
+        self.git(repository, 'add', '--all')
+        self.commit(repository, 'chore: add files', '2026-09-22T10:00:00')
+        for name in ('f1', 'f2', 'kept.txt'):
+            (repository / name).write_text('changed\n', encoding='utf-8')
+        self.git(repository, 'add', 'kept.txt')
+        (repository / 'f3').unlink()
+        self.git(repository, 'mv', 'old name', 'new name')
+        (repository / 'fresh.txt').write_text('fresh\n', encoding='utf-8')
+        self.git(repository, 'add', 'fresh.txt')
+        (repository / 'loose.txt').write_text('loose\n', encoding='utf-8')
+        self.assertEqual(collect.collect_repo_context(str(repository))['uncommitted'], {
+            'modified': ['f1', 'f2', 'kept.txt'],
+            'added': ['fresh.txt'],
+            'deleted': ['f3'],
+            'renamed': ['new name'],
+            'untracked': ['loose.txt'],
+        })
+
+    def test_clean_repository_has_no_uncommitted_paths(self) -> None:
+        repository = self.repository('zone')
+        self.commit(repository, 'chore: start', '2026-09-22T10:00:00')
+        self.assertNotIn('uncommitted', collect.collect_repo_context(str(repository)))
+
 
 if __name__ == '__main__':
     unittest.main()
