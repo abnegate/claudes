@@ -419,7 +419,7 @@ parameters:
         - tests/resources
 ```
 
-Existing codebases that can't reach max yet can sit at a lower level **as long as there's a written plan to raise it**. Never lower the level to silence an error. Add to `phpstan-baseline.neon` with a dated `// TODO: revisit` instead, and shrink the baseline over time.
+Existing codebases that can't reach max yet can sit at a lower level **as long as there's a written plan to raise it**. Never lower the level to silence an error. Add to `phpstan-baseline.neon` with a dated `# TODO(2026-09): revisit` instead, and shrink the baseline over time.
 
 Useful extensions: `phpstan/phpstan-strict-rules`, `phpstan/phpstan-deprecation-rules`, `phpstan/phpstan-phpunit`.
 
@@ -715,7 +715,7 @@ Drop-in compatible with PHPUnit. CI should always use paratest.
 | Writing a `~` or `*` constraint (`"~0.33.0"`, `"0.33.*"`) | `"^0.33"` caret range | House rule: carets for every dependency. |
 | Writing a patch file / `vendor-patches/` / copying a dep locally | Fix the dep upstream, commit, push, `composer update <package>` | No shims. |
 | Committing without running `composer format` / `composer lint` | Format first, then commit | Pre-commit hook if possible. |
-| Lowering PHPStan level to make an error disappear | Fix the error, or add a line to `phpstan-baseline.neon` with a dated `// TODO: revisit` | Shrink the baseline over time; never grow it. |
+| Lowering PHPStan level to make an error disappear | Fix the error, or add a line to `phpstan-baseline.neon` with a dated `# TODO(2026-09): revisit` | Shrink the baseline over time; never grow it. |
 | `git commit --no-verify` to skip hooks | Investigate why the hook fails; fix the underlying issue | Only skip if the user explicitly asks. |
 | Leaving `// TODO: remove`, dead code, abandoned branches, commented-out iterations in the final commit | Clean up before stopping — the last commit of a finished change reads as if the iterations never happened | Finalize, don't accrete. |
 | Leaving "we can migrate this later" comments | Finish the migration in the same commit | No loose ends. |
