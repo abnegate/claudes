@@ -95,7 +95,7 @@ Run the stack's Test all command.
 
 ## Phase 3: Manual Cleanup (Consolidation Pattern)
 
-Commit the Phase 2 changes first (see Commit Strategy), because uncommitted work is not part of BASE. Then record BASE and follow the consolidation skill's Worktree BASE protocol for every worktree agent.
+Commit the Phase 2 changes first (see Commit Strategy), because uncommitted work is not part of BASE. Then record BASE: the SHA `git rev-parse HEAD` prints in this checkout. Give each file group's `architect` agent the checkout's absolute path as the repo, BASE, its own branch and an absolute worktree path (explicit worktree mode: the architect follows its Worktree BASE protocol). Prompt the consolidator with this checkout as the integration worktree, BASE, and merge as the integration mode.
 
 Using the unified manifest from Phase 1, partition the affected files into groups. Use the **consolidation pattern** — launch each file group as a parallel agent in its own worktree. Agents can freely edit overlapping files; the consolidator handles merges.
 

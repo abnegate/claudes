@@ -100,7 +100,7 @@ Each agent:
 
 Partition diagnosed failures into groups by root cause. Use the **consolidation pattern** — launch each fix group as a parallel agent in its own worktree. Agents can freely edit overlapping files; the consolidator handles merges.
 
-Before launching them, record BASE and follow the consolidation skill's Worktree BASE protocol for every worktree agent. BASE is the PR head (`git rev-parse HEAD` in the checkout from step 1).
+Before launching them, record BASE: the SHA `git rev-parse HEAD` prints in the checkout from step 1 (the PR head). Give each group's `architect` agent that checkout's absolute path as the repo, BASE, its own branch and an absolute worktree path (explicit worktree mode: the architect follows its Worktree BASE protocol). Prompt the consolidator with that checkout as the integration worktree, BASE, and merge as the integration mode.
 
 **Per worktree agent:**
 1. Apply the proposed fix from the analysis
@@ -141,7 +141,7 @@ Group review comments by file. Launch a separate agent per file (or per independ
 
 Launch each comment group as a parallel agent in its own worktree. Agents can freely edit overlapping files; the consolidator handles merges.
 
-Before launching them, record BASE and follow the consolidation skill's Worktree BASE protocol for every worktree agent. BASE is the PR head (`git rev-parse HEAD` in the checkout from step 1).
+Before launching them, record BASE: the SHA `git rev-parse HEAD` prints in the checkout from step 1 (the PR head). Give each group's `architect` agent that checkout's absolute path as the repo, BASE, its own branch and an absolute worktree path (explicit worktree mode: the architect follows its Worktree BASE protocol). Prompt the consolidator with that checkout as the integration worktree, BASE, and merge as the integration mode.
 
 **Per worktree agent:**
 1. Apply the requested change (or closest reasonable interpretation)

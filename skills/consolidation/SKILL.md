@@ -100,10 +100,9 @@ Each agent prompt MUST include:
 3. Project conventions and relevant CLAUDE.md rules
 4. Awareness that other agents are working in parallel — focus on your own subtask, commit when done
 5. The exact files to read first and files to create/modify
-6. BASE and its first commands (steps 2-3 of the Worktree BASE protocol), with its branch and absolute worktree path in explicit mode
+6. BASE, and in explicit mode the repo, its branch and absolute worktree path; the architect's own Worktree BASE protocol covers the rest, including its report
 7. Commit rules: commit on its own branch in the scoped format (`type(scope): subject`), never push
-8. The report fields from step 4 of the Worktree BASE protocol
-9. Its depth, and "do not spawn subagents unless granted a budget" (grant part of yours when a subtask needs helpers)
+8. Its depth, and "do not spawn subagents unless granted a budget" (grant part of yours when a subtask needs helpers)
 
 Wait for ALL agents in the wave to complete before starting the next wave, including every batch when the wave exceeds the concurrency budget.
 
@@ -161,10 +160,8 @@ A workstream conductor's final action is `SubagentHandback({message: <Workstream
 **BASE** is the SHA a wave branches from: the integration branch HEAD at wave start. The **integration branch/worktree** is the branch the wave's work lands on, and its checkout. Worktrees come from **isolation mode** (`isolation: "worktree"`; needs the session cwd inside the repo and is not used inside workstreams) or **explicit worktree mode** (`git -C <repo> worktree add -b <branch> <abs path> <BASE>`; always available). Branch names stay flat, because `ws-a` and `ws-a/x` cannot coexist as refs: `task-<subtask>` in top-level explicit mode, `ws-<workstream>` for a workstream integration branch, `ws-<workstream>-<subtask>` for an architect branch inside a workstream.
 
 1. Before each wave, the conductor runs `git -C <integration worktree> rev-parse HEAD` and writes the printed SHA itself wherever `<BASE>` appears in prompts and commands: a shell variable dies with its Bash call. Uncommitted changes are not part of BASE.
-2. In isolation mode (session cwd inside the repo), every worktree agent first runs `git status --porcelain` (must be empty), then `git reset --hard <BASE>`, then confirms `git rev-parse HEAD` = BASE.
-3. In explicit mode, the agent (or the conductor, as git bookkeeping) runs `git -C <repo> worktree add -b <branch> <abs path> <BASE>`. The agent works only in that path.
-4. Last step: commit on its branch (scoped format), do not push, and report the branch, absolute worktree path, `git rev-parse HEAD`, `git log --oneline BASE..HEAD`, files changed, and checks run.
-5. Before integrating, the consolidator checks `git merge-base --is-ancestor <BASE> <branch>` for every branch.
+2. Each architect gets BASE and, in explicit mode, the repo, its branch and absolute worktree path; the conductor may create that worktree first, as git bookkeeping. The `architect` agent's own Worktree BASE protocol does the rest: the reset to BASE in isolation mode, commits on its branch without a push, and the report.
+3. Before integrating, the consolidator checks `git merge-base --is-ancestor <BASE> <branch>` for every branch.
 
 ## Nested workstreams
 

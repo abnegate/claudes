@@ -93,7 +93,7 @@ Combine findings from all six agents into a single prioritized list. Remove dupl
 
 Partition the issue list into groups by area/theme. Use the **consolidation pattern** — launch each fix group as a parallel agent in its own worktree. Agents can freely edit overlapping files; the consolidator handles merges.
 
-Before launching them, record BASE and follow the consolidation skill's Worktree BASE protocol for every worktree agent. BASE is the current `HEAD` SHA (`git rev-parse HEAD`), not the base branch from Step 1.
+Before launching them, record BASE: the SHA `git rev-parse HEAD` prints in this checkout. Give each group's `architect` agent the checkout's absolute path as the repo, BASE, its own branch and an absolute worktree path (explicit worktree mode: the architect follows its Worktree BASE protocol). Prompt the consolidator with this checkout as the integration worktree, BASE, and merge as the integration mode.
 
 **Per worktree agent:**
 1. Verify each assigned issue is valid (not a false positive)

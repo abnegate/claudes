@@ -129,7 +129,7 @@ Then launch a **verifier** agent (`subagent_type: "verifier"`) to validate the p
 
 ## Phase 3: Execute Refactoring
 
-Commit any characterization tests from Phase 1 first (`skills:commit` with `test(<scope>): …`), because uncommitted work is not part of BASE. Then record BASE and follow the consolidation skill's Worktree BASE protocol for every worktree agent.
+Commit any characterization tests from Phase 1 first (`skills:commit` with `test(<scope>): …`), because uncommitted work is not part of BASE. Then record BASE: the SHA `git rev-parse HEAD` prints in this checkout. Give each independent step's `architect` agent the checkout's absolute path as the repo, BASE, its own branch and an absolute worktree path (explicit worktree mode: the architect follows its Worktree BASE protocol). Prompt the consolidator with this checkout as the integration worktree, BASE, and merge as the integration mode.
 
 **Independent steps** (touching different files with no dependency): launch ALL simultaneously as **architect** agents, each in its own worktree, then merge via the **consolidator**.
 
