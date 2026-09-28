@@ -5,47 +5,54 @@ description: Search Claude Code conversation history on disk for a given query. 
 
 # Search Conversation History
 
-Search through Claude Code conversation history JSONL files for the given query.
+Search the Claude Code conversation history JSONL files of every profile for the given query.
 
 ## Instructions
 
-1. Identify the project history directory. For the current working directory, the history path is:
-   `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/<project-key>/`
-   
-   The project key is derived from the working directory path with slashes and dots replaced by dashes. For example:
-   - `/Users/jakebarnby/Local/sshoo` → `-Users-jakebarnby-Local-sshoo`
-   
-   List `*.jsonl` session files sorted by modification time (newest first):
+1. Find the session files that mention the query. Every profile (`~/.claude`, each `~/.claude-*` directory and `$CLAUDE_CONFIG_DIR`) keeps them in `projects/<project-key>/`, where the project key is the working directory's physical path with every character other than a letter or digit replaced by `-`. For example:
+   - `/Users/jakebarnby/Local/spotify_sync` → `-Users-jakebarnby-Local-spotify-sync`
+   - `/Users/jakebarnby/Local/.query-train` → `-Users-jakebarnby-Local--query-train`
+
+   Run the block in one Bash call from the project's directory, with `QUERY='<text>'` assigned on the line before it. It prints every matching file in every profile, `subagents/` files included. If it prints nothing, run it again with `ALL_PROJECTS=1` also assigned on that line to search every project; that fallback also covers keys longer than 200 characters, which Claude Code truncates with a hash suffix the block cannot reproduce. Start with `ALL_PROJECTS=1` when the user asks about another project.
    ```bash
-   ls -t "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/<project-key>/*.jsonl
+   QUERY="${QUERY:?set QUERY to the text to search for}"
+   PROJECT_KEY=$(pwd -P | sed 's#[^A-Za-z0-9]#-#g')
+   if [ "${ALL_PROJECTS:-0}" = 1 ]; then PROJECT_KEY=''; fi
+   {
+     find "$HOME" -maxdepth 1 -type d \( -name .claude -o -name '.claude-*' \)
+     if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then echo "$CLAUDE_CONFIG_DIR"; fi
+   } | while IFS= read -r PROFILE_DIR; do
+     if [ -d "$PROFILE_DIR/projects" ]; then (cd "$PROFILE_DIR" && pwd -P); fi
+   done | sort -u | while IFS= read -r PROFILE_DIR; do
+     SEARCH_DIR="$PROFILE_DIR/projects/$PROJECT_KEY"
+     if [ -d "$SEARCH_DIR" ]; then grep -rlF --include='*.jsonl' -- "$QUERY" "$SEARCH_DIR" || true; fi
+   done
    ```
 
-2. Search the JSONL files for the user's query using grep:
+2. Group the hits by session: `projects/<project-key>/<session-id>.jsonl` is a main session, and a hit anywhere under `projects/<project-key>/<session-id>/subagents/` belongs to the parent session `<session-id>`. Profiles hold copies of the same session, so keep one hit per session id, the one with the newest mtime (`ls -t` on the printed paths lists them newest first). Its profile is the one to resume in.
+
+3. For each kept file, newest first, print the text around each match, matched literally like the search:
    ```bash
-   grep -l "<query>" "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/<project-key>/*.jsonl
-   ```
-   
-   Then for matching files, extract surrounding context:
-   ```bash
-   grep -C 2 "<query>" <file> | head -100
+   TEXT='<text>' awk 'i = index($0, ENVIRON["TEXT"]) { print substr($0, i > 200 ? i - 200 : 1, 400 + length(ENVIRON["TEXT"])) }' <file> | head -20
    ```
 
-3. Parse and present results:
+4. Parse and present results:
    - Show which session file(s) matched
    - Show the relevant conversation context around each match
    - If the query relates to code, try to extract the actual code blocks
    - Summarize findings concisely
 
-4. **For every matching session, output a resume command.** The session ID is the JSONL filename without the extension. Format:
+5. **For every matching session, output a resume command** for the profile that holds its newest copy:
+   - `~/.claude`: `env -u CLAUDE_CONFIG_DIR claude --dangerously-skip-permissions --resume <session-id>`
+   - any other profile: its alias when the shell defines one (`claude-work` for `~/.claude-work`; `alias` lists them), otherwise `CLAUDE_CONFIG_DIR=<profile dir> claude`, followed by `--dangerously-skip-permissions --resume <session-id>`
+
+   Claude Code resumes a session only from the directory it ran in, so for a session from another project, prefix the command with `cd <cwd> && `, where `<cwd>` is the `cwd` field of the session's entries.
+
+   For example, if the newest copy of a session from the current project is `~/.claude-work/projects/-Users-jakebarnby-Local-sshoo/8afa50e5.jsonl`, output:
    ```
-   claude --dangerously-skip-permissions --resume <session-id>
+   claude-work --dangerously-skip-permissions --resume 8afa50e5
    ```
-   
-   For example, if the matching file is `8afa50e5.jsonl`, output:
-   ```
-   claude --resume 8afa50e5
-   ```
-   
+
    List these at the end of the output grouped under a "Resume" heading, with a one-line description of what each session was about (infer from the first few lines of the file or from the matched context).
 
 ## Arguments
