@@ -31,7 +31,7 @@ Example: `/pr-fix https://github.com/owner/repo/pull/123 comments=true checks=fa
 gh pr checkout <pr-ref>
 ```
 
-When checks=true and `gh pr checks <pr-ref>` lists pending checks or none yet, follow **Wait for CI** before step 2.
+When checks=true and `gh pr checks <pr-ref>` lists pending checks, follow **Wait for CI** before step 2. If it lists no checks, follow it only when `git ls-files .github/workflows` prints a workflow file, and otherwise handle the PR as on exit 3.
 
 #### Wait for CI
 
