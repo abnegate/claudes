@@ -16,7 +16,7 @@ Launch these in parallel:
 **Agent 1 — Branch & Diff Info:**
 ```bash
 CURRENT=$(git branch --show-current)
-if git remote -v | grep -q "appwrite"; then BASE="1.8.x"; else BASE="main"; fi
+BASE="main"
 echo "Reviewing $CURRENT against $BASE"
 git diff $BASE...HEAD --name-only
 git diff $BASE...HEAD --stat
