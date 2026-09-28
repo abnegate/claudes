@@ -1,6 +1,6 @@
 ---
 name: review
-description: Thorough code review of current branch against main
+description: Thorough code review of current branch against the default branch
 ---
 
 # Code Review
