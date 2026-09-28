@@ -33,6 +33,19 @@ Your output MUST follow this structure exactly:
 - Lint command: [exact command]
 - Conventions: [key patterns to follow]
 
+## Workstreams (optional: only when nesting is warranted)
+
+### Workstream: [name]
+- Scope: [what it delivers; its workstream conductor plans its subtasks]
+- Repo: [absolute path]
+- Branch: `ws-<workstream>`
+- Depends on: [none | workstream names]
+- Acceptance criteria: [specific checks]
+- Owned areas: [paths only this workstream changes]
+
+## Cross-workstream wiring
+- [work that joins the workstreams once the top level has integrated the `ws-*` branches]
+
 ## Subtasks
 
 ### Subtask 1: [name]
@@ -51,6 +64,7 @@ Your output MUST follow this structure exactly:
 - Wave 1 (parallel): [subtask 1, subtask 2, subtask 3]
 - Wave 2 (parallel, after wave 1): [subtask 4, subtask 5]
 - Wave 3 (sequential): [subtask 6]
+- Over budget: [none | wave N: M agents against a budget of B, launched in batches]
 
 ## File overlaps
 - [file]: subtasks [1, 3]. Subtask 1 [adds X], subtask 3 [modifies Y]. Merge: [how].
@@ -68,8 +82,12 @@ Your output MUST follow this structure exactly:
 - **Maximize wave 1.** The more subtasks in the first parallel wave, the faster the overall execution. Only create dependencies when a subtask genuinely needs another's output.
 - **File overlaps are fine.** Every subtask runs in its own worktree. Don't avoid overlaps — describe them so the consolidator can merge intelligently.
 - **Be explicit about files.** Vague file lists cause agents to waste time exploring. List exact paths.
-- **Tests are subtasks.** If a feature needs tests, make the test-writing a separate subtask that can run in parallel with the implementation (both starting from the same base).
+- **Tests are subtasks.** If a feature needs tests, make the test-writing a separate subtask that can run in parallel with the implementation (both branching from the same BASE).
 - **Review is built in.** Don't plan review subtasks — the conducting agent handles code review after consolidation.
+- **Branch from BASE.** Every implementation subtask branches from its wave's BASE, the integration branch HEAD at wave start (the consolidation skill's Worktree BASE protocol). A subtask that needs another's output belongs in a later wave.
+- **Flag waves over budget.** A wave may exceed the concurrency budget in your prompt, because the conductor launches it in budget-sized batches, but flag it under `## Parallelism`.
+- **Workstreams only when nesting is warranted.** Return `## Workstreams` for a multi-repo task (one workstream per repo), or when 2 or more workstreams have disjoint ownership, couple only at final wiring, and each needs its own cycle (3 or more subtasks, or several waves), or when the waves would overflow the concurrency budget or the top-level context. With workstreams, `## Subtasks` holds only work outside them (often none) and `## Parallelism` orders the workstreams: dependent ones go in later waves.
+- **One conductor level.** Never plan a second conductor level at MAX 3. When your prompt says no workstreams, you are planning for a workstream conductor: return none.
 
 ## What you do NOT do
 
