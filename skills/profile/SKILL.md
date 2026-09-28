@@ -11,6 +11,7 @@ Build a comprehensive developer profile by combining git commit activity with Cl
 
 A collection script at `scripts/collect.py` in the plugin root scans git repos for commit metadata and reads the Claude Code session files of every profile. It outputs a single JSON payload with two top-level sections: `git` and `claude`. It needs Python 3.9 or later and nothing outside the standard library.
 
+- **Commits**: the window starts at local midnight on the `--since` day, and each commit is dated by its author date, so rebased commits keep their original day. A commit is counted once across clones (by hash) and once within a repository (by author email, author date and subject, which drops rebased copies). Stashes are not commits. Repositories that share a directory name are counted together.
 - **Profiles**: `~/.claude`, every `~/.claude-*` directory and `$CLAUDE_CONFIG_DIR`, each only when it has a `projects/` directory, deduplicated by physical path. `--config-dir PATH` (repeatable) scans only the given directories instead. `claude.profiles_scanned` lists the profiles read.
 - **Copied sessions**: profiles often hold copies of the same session file. Copies are grouped by their path relative to `projects/`. The largest copy is read, plus any copy of a different size (a session resumed in another profile), and `user`/`assistant` entries are unioned by `uuid`, so every message counts once. Copies last modified before `--since` are skipped.
 - **Titles**: a session's title is its last `custom-title` entry; when copies disagree, the largest copy wins.

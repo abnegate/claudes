@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import contextlib
+import io
+import json
 import os
 import subprocess
 import sys
@@ -18,6 +21,7 @@ import collect
 AUTHOR = 'Tester'
 EMAIL = 'tester@example.com'
 ZONE = 'Pacific/Auckland'
+BRANCH = 'main'
 CONFIG_DIRECTORY_VARIABLE = 'CLAUDE_CONFIG_DIR'
 TIME_FIELDS = ('date', 'time', 'hour', 'weekday', 'week', 'month')
 
@@ -57,12 +61,23 @@ class GitTest(unittest.TestCase):
     def repository(self, name: str) -> Path:
         path = self.root / 'code' / name
         path.mkdir(parents=True)
-        self.git(path, 'init', '--quiet')
+        self.git(path, 'init', '--quiet', f'--initial-branch={BRANCH}')
         return path
 
     def commit(self, repository: Path, subject: str, authored: str, committed: str | None = None) -> None:
         dates = {'GIT_AUTHOR_DATE': authored, 'GIT_COMMITTER_DATE': committed or authored}
         self.git(repository, 'commit', '--quiet', '--allow-empty', '--message', subject, environment=dates)
+
+    def main(self, *arguments: str) -> dict[str, Any]:
+        command_line = mock.patch.object(sys, 'argv', ['collect.py', str(self.root / 'code'), '--author', AUTHOR, *arguments])
+        output = io.StringIO()
+        with command_line, contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
+            collect.main()
+        result: dict[str, Any] = json.loads(output.getvalue())
+        return result
+
+    def subjects(self, commits: list[dict[str, Any]]) -> list[str]:
+        return sorted(commit['subject'] for commit in commits)
 
     def times(self, commits: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return [{field: commit[field] for field in TIME_FIELDS} for commit in commits]
@@ -79,6 +94,53 @@ class GitTest(unittest.TestCase):
             'week': '2026-W36',
             'month': '2026-09',
         }])
+
+    def test_window_starts_at_local_midnight(self) -> None:
+        repository = self.repository('zone')
+        self.commit(repository, 'feat: before midnight', '2026-09-20T23:59:59')
+        self.commit(repository, 'feat: after midnight', '2026-09-21T00:00:01')
+        commits = collect.collect_commits(str(repository), AUTHOR, '2026-09-21')
+        self.assertEqual(self.subjects(commits), ['feat: after midnight'])
+
+    def test_rebased_commit_is_dated_by_its_author_date(self) -> None:
+        repository = self.repository('zone')
+        self.commit(repository, 'fix: written before the window', '2026-09-01T12:00:00', '2026-09-25T12:00:00')
+        self.commit(repository, 'fix: written in the window', '2026-09-22T12:00:00', '2026-09-25T12:00:00')
+        commits = collect.collect_commits(str(repository), AUTHOR, '2026-09-21')
+        self.assertEqual([(commit['subject'], commit['date']) for commit in commits], [('fix: written in the window', '2026-09-22')])
+
+    def test_clones_and_rebased_copies_count_once(self) -> None:
+        alpha = self.repository('alpha')
+        self.commit(alpha, 'feat: one', '2026-09-22T10:00:00')
+        self.commit(alpha, 'fix: two', '2026-09-23T10:00:00')
+        self.git(alpha, 'checkout', '--quiet', '-b', 'copy', 'HEAD~1')
+        self.git(alpha, 'cherry-pick', '--allow-empty', BRANCH, environment={'GIT_COMMITTER_DATE': '2026-09-24T10:00:00'})
+        beta = self.root / 'code' / 'beta'
+        self.git(self.root, 'clone', '--quiet', str(alpha), str(beta))
+        self.commit(beta, 'docs: three', '2026-09-24T12:00:00')
+        git = self.main('--since', '2026-09-01')['git']
+        self.assertEqual(git['summary']['total_commits'], 3)
+        self.assertEqual(git['by_repo'], {'alpha': 2, 'beta': 1})
+
+    def test_stash_is_not_counted(self) -> None:
+        repository = self.repository('zone')
+        (repository / 'notes.txt').write_text('first\n', encoding='utf-8')
+        self.git(repository, 'add', 'notes.txt')
+        self.commit(repository, 'docs: add notes', '2026-09-22T10:00:00')
+        (repository / 'notes.txt').write_text('second\n', encoding='utf-8')
+        self.git(repository, 'stash', '--quiet')
+        commits = collect.collect_commits(str(repository), AUTHOR, '2026-09-01')
+        self.assertEqual(self.subjects(commits), ['docs: add notes'])
+        self.assertEqual(collect.collect_repo_context(str(repository))['recent_subjects'], ['docs: add notes'])
+
+    def test_repositories_sharing_a_name_are_counted_together(self) -> None:
+        first = self.repository('one/tool')
+        second = self.repository('two/tool')
+        self.commit(first, 'feat: first tool', '2026-09-22T10:00:00')
+        self.commit(second, 'feat: second tool', '2026-09-23T10:00:00')
+        git = self.main('--since', '2026-09-01')['git']
+        self.assertEqual(git['summary']['total_commits'], 2)
+        self.assertEqual(git['by_repo'], {'tool': 2})
 
 
 if __name__ == '__main__':

@@ -42,7 +42,8 @@ TIME_BUCKETS = ((5, 9, 'early_morning'), (9, 12, 'morning'), (12, 14, 'lunch'), 
 NIGHT_BUCKET = 'night'
 
 GIT_DIRECTORY = '.git'
-COMMIT_LOG_FORMAT = '%H%x00%aI%x00%s'
+COMMIT_LOG_FORMAT = '%H%x00%aI%x00%ae%x00%s'
+STASH_REFERENCE = 'refs/stash'
 COMMIT_FIELD_SEPARATOR = '\x00'
 MODIFIED_STATUSES = (' M', 'M ', 'MM')
 ADDED_STATUSES = ('A ', 'AM')
@@ -157,24 +158,26 @@ def detect_author(repos: Sequence[str]) -> str | None:
 
 
 def collect_commits(repo_path: str, author: str, since: str) -> list[dict[str, Any]]:
+    start = window_start(since)
     try:
-        arguments = ['git', '-C', repo_path, 'log', f'--author={author}',
-                     f'--since={since}', f'--format={COMMIT_LOG_FORMAT}', '--all']
+        arguments = ['git', '-C', repo_path, 'log', f'--author={author}', f'--since={start.astimezone().isoformat()}',
+                     f'--format={COMMIT_LOG_FORMAT}', f'--exclude={STASH_REFERENCE}', '--all']
         output = subprocess.check_output(arguments, stderr=subprocess.DEVNULL, text=True)
     except subprocess.CalledProcessError:
         return []
 
     commits: list[dict[str, Any]] = []
-    for line in output.strip().split('\n'):
-        fields = line.split(COMMIT_FIELD_SEPARATOR, 2)
-        if len(fields) < 3:
+    for line in output.splitlines():
+        fields = line.split(COMMIT_FIELD_SEPARATOR, 3)
+        if len(fields) < 4:
             continue
-        commit_hash, date_iso, subject = fields
+        commit_hash, date_iso, email, subject = fields
         authored = parse_timestamp(date_iso)
-        if authored is None:
+        if authored is None or authored < start:
             continue
         commits.append({
-            'hash': commit_hash[:8],
+            'hash': commit_hash,
+            'email': email,
             'datetime': date_iso,
             'date': authored.strftime(DATE_FORMAT),
             'time': authored.strftime(TIME_FORMAT),
@@ -186,6 +189,13 @@ def collect_commits(repo_path: str, author: str, since: str) -> list[dict[str, A
             'subject': subject,
         })
     return commits
+
+
+def unique_commits(commits: list[dict[str, Any]], seen_hashes: set[str]) -> list[dict[str, Any]]:
+    copies: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    for commit in commits:
+        copies.setdefault((commit['email'], commit['datetime'], commit['subject']), []).append(commit)
+    return [group[0] for group in copies.values() if not any(commit['hash'] in seen_hashes for commit in group)]
 
 
 def collect_repo_context(repo_path: str) -> dict[str, Any]:
@@ -222,7 +232,7 @@ def collect_repo_context(repo_path: str) -> dict[str, Any]:
 
     try:
         output = subprocess.check_output(
-            ['git', '-C', repo_path, 'log', '-20', '--format=%s', '--all'],
+            ['git', '-C', repo_path, 'log', '-20', '--format=%s', f'--exclude={STASH_REFERENCE}', '--all'],
             stderr=subprocess.DEVNULL, text=True
         ).strip()
         if output:
@@ -296,6 +306,11 @@ def compute_streaks(dates: list[str]) -> dict[str, Any]:
 
 def local_datetime(moment: datetime) -> datetime:
     return moment.astimezone().replace(tzinfo=None) if moment.tzinfo else moment
+
+
+def window_start(since: str) -> datetime:
+    start = local_datetime(datetime.fromisoformat(since.replace('Z', '+00:00')))
+    return start.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def parse_timestamp(value: Any) -> datetime | None:
@@ -840,13 +855,17 @@ def main() -> None:
     repos_data: dict[str, list[dict[str, Any]]] = {}
     repos_context: dict[str, dict[str, Any]] = {}
     all_commits: list[dict[str, Any]] = []
+    seen_hashes: set[str] = set()
     for repo_path in repos:
         repo_name = os.path.basename(repo_path)
-        commits = collect_commits(repo_path, author, since)
+        repository_commits = collect_commits(repo_path, author, since)
+        commits = unique_commits(repository_commits, seen_hashes)
+        seen_hashes.update(commit['hash'] for commit in repository_commits)
         if commits:
-            repos_data[repo_name] = commits
+            repos_data.setdefault(repo_name, []).extend(commits)
             all_commits.extend(commits)
-            repos_context[repo_name] = collect_repo_context(repo_path)
+            if repo_name not in repos_context:
+                repos_context[repo_name] = collect_repo_context(repo_path)
 
     git_analysis = analyze(all_commits, repos_data)
     git_analysis['repo_context'] = repos_context
