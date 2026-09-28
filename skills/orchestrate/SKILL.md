@@ -95,7 +95,7 @@ If the working tree is dirty (uncommitted changes), commit them before moving on
 If the complexity assessment calls for additional review cycles beyond what the consolidation cycle performed, invoke improve:
 
 ```
-Skill(skill="skills:improve", args="$REMAINING_CYCLES")
+Skill(skill="skills:improve", args="<CYCLES - 1>")
 ```
 
 For most tasks the consolidation skill's built-in reviewer + verifier cycle is sufficient. Only run additional improve cycles for Big/Huge features.
