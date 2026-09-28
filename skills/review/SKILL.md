@@ -59,11 +59,24 @@ Launch these **reviewer** agents in parallel, each reviewing the same diff but f
 - Flaky test patterns
 
 **Agent D — Project Standards:**
-- KtLint compliance
-- Proper use of Exposed ORM patterns
+- Compliance with the detected stack's lint and format config
+- The rules of the matching house skill, loaded with the Skill tool (for example `Skill(skill="skills:php-expert")`)
+- The user's and the project's CLAUDE.md rules
 - Correct serialization annotations
-- MVI pattern adherence (client code)
 - Code clarity and readability
+
+Detect the stacks the diff touches from the manifests at the repository root and the changed file types, and give Agent D each stack's config files and house skill. Examples:
+
+| Stack | Lint and format config | House skill |
+|---|---|---|
+| Gradle | ktlint through Spotless or the ktlint plugin (`.editorconfig`), detekt (`detekt.yml`) | kotlin-expert; android-expert for Android and Compose code |
+| Maven | Checkstyle, PMD or Spotless configured in `pom.xml` | kotlin-expert for Kotlin code |
+| PHP | Pint (`pint.json`) or PHP-CS-Fixer, PHPStan (`phpstan.neon`) | php-expert; swoole-expert for Swoole code |
+| Node | ESLint (`eslint.config.*`), Prettier (`.prettierrc`), `tsconfig.json` | react-best-practices for React code |
+| Rust | `rustfmt.toml`, Clippy (`clippy.toml`, `[lints]` in `Cargo.toml`) | — |
+| Go | gofmt, golangci-lint (`.golangci.yml`) | — |
+| Python | Ruff and mypy (`[tool.ruff]` and `[tool.mypy]` in `pyproject.toml`) | — |
+| Docker | hadolint (`.hadolint.yaml`) if configured | docker-expert |
 
 ### 3. Merge & Report
 
