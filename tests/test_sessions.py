@@ -57,6 +57,11 @@ FINAL_FAST_USAGE = {'input_tokens': MILLION, 'output_tokens': MILLION, 'speed': 
 FINAL_FAST_COST = 48.0
 PADDING = 'x' * 2000
 TOOL_RESULT = [{'type': 'tool_result', 'tool_use_id': 't1', 'content': 'ok'}]
+SDK_SOURCE = 'sdk'
+TYPED_SOURCE = 'typed'
+HUMAN = {'kind': 'human'}
+SCHEDULED = {'kind': 'scheduled-trigger'}
+PYTHON_SDK = 'sdk-py'
 SESSION_KEYS = frozenset({
     'id', 'created', 'date', 'hour', 'weekday', 'week', 'month', 'model', 'models', 'cost', 'cost_by_model',
     'unpriced_models', 'turns', 'user_messages', 'assistant_messages', 'tool_calls', 'tool_count', 'skills_used',
@@ -475,6 +480,20 @@ class SessionsTest(unittest.TestCase):
         session = self.collect_sessions(self.default_profile)['S51']
         self.assertEqual(session['user_messages'], 7)
         self.assertEqual(session['turns'], 1)
+
+    def test_turns_skip_prompts_a_program_sends_through_the_sdk(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S56', [
+            {**self.user('S56', 'u1', 'summarise this diff'), 'promptSource': SDK_SOURCE, 'entrypoint': PYTHON_SDK},
+            {**self.user('S56', 'u2', 'fix the login bug'), 'promptSource': SDK_SOURCE, 'origin': HUMAN},
+            self.user('S56', 'u3', 'and add a test'),
+        ])
+        self.write(self.default_profile, PROJECT, 'S57', [
+            {**self.user('S57', 'u4', 'typed in a terminal'), 'promptSource': TYPED_SOURCE},
+            {**self.user('S57', 'u5', 'check the deploy'), 'promptSource': SDK_SOURCE, 'origin': SCHEDULED},
+        ])
+        sessions = self.collect_sessions(self.default_profile)
+        self.assertEqual(sessions['S56']['turns'], 2)
+        self.assertEqual(sessions['S57']['turns'], 1)
 
     def test_active_time_caps_idle_gaps_and_counts_subagent_work(self) -> None:
         self.write(self.default_profile, PROJECT, 'S52', [

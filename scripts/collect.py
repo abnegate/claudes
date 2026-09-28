@@ -127,6 +127,11 @@ GIT_BRANCH_FIELD = 'gitBranch'
 CUSTOM_TITLE_FIELD = 'customTitle'
 META_FIELD = 'isMeta'
 COMPACT_SUMMARY_FIELD = 'isCompactSummary'
+PROMPT_SOURCE_FIELD = 'promptSource'
+SDK_PROMPT_SOURCE = 'sdk'
+ORIGIN_FIELD = 'origin'
+ORIGIN_KIND_FIELD = 'kind'
+HUMAN_ORIGIN = 'human'
 MESSAGE_FIELD = 'message'
 MESSAGE_ID_FIELD = 'id'
 MODEL_FIELD = 'model'
@@ -741,7 +746,7 @@ def active_time(intervals: Iterable[tuple[datetime, datetime]]) -> timedelta:
 
 
 def is_prompt(entry: Mapping[str, Any]) -> bool:
-    if entry.get(META_FIELD) or entry.get(COMPACT_SUMMARY_FIELD):
+    if entry.get(META_FIELD) or entry.get(COMPACT_SUMMARY_FIELD) or is_sent_by_program(entry):
         return False
     message = entry.get(MESSAGE_FIELD)
     content = message.get(CONTENT_FIELD) if isinstance(message, Mapping) else None
@@ -751,6 +756,12 @@ def is_prompt(entry: Mapping[str, Any]) -> bool:
             return False
         content = next((block.get(TEXT_FIELD) for block in blocks if block.get(TYPE_FIELD) == TEXT_BLOCK), '')
     return isinstance(content, str) and not content.lstrip().startswith(HARNESS_PREFIXES)
+
+
+def is_sent_by_program(entry: Mapping[str, Any]) -> bool:
+    origin = entry.get(ORIGIN_FIELD)
+    typed = isinstance(origin, Mapping) and origin.get(ORIGIN_KIND_FIELD) == HUMAN_ORIGIN
+    return entry.get(PROMPT_SOURCE_FIELD) == SDK_PROMPT_SOURCE and not typed
 
 
 def record_usage(

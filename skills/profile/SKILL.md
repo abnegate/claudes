@@ -81,7 +81,7 @@ The JSON output has two top-level keys: `git` and `claude`. Use **both** to buil
 
 #### Summary
 - Total sessions, **estimated cost** (pay-as-you-go rates, not actual spend on flat-rate plans — note this when presenting)
-- Total turns, average turns per session. A turn is a prompt typed into a main session; tool results, meta and compact-summary entries, harness messages (task notifications, command output, CI events, interrupt markers) and prompts sent to subagents don't count.
+- Total turns, average turns per session. A turn is a prompt typed into a main session; tool results, meta and compact-summary entries, harness messages (task notifications, command output, CI events, interrupt markers), prompts sent to subagents and prompts a program sends through the Agent SDK (`promptSource` is `sdk` and `origin.kind` isn't `human`) don't count.
 - Total tool calls, average tools per session
 - Active days and sessions per active day
 
