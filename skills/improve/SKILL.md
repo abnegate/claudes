@@ -29,10 +29,11 @@ Collect the base branch, the commit history, the changed files and the full diff
 ```bash
 BASE_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
 : "${BASE_BRANCH:?no base branch found: ask the user which branch to compare against}"
+git fetch -q origin "$BASE_BRANCH"
 echo "BASE_BRANCH=$BASE_BRANCH"
-git log --oneline "$BASE_BRANCH"..HEAD
-git diff --stat "$BASE_BRANCH"...HEAD
-git diff "$BASE_BRANCH"...HEAD
+git log --oneline "origin/$BASE_BRANCH"..HEAD
+git diff --stat "origin/$BASE_BRANCH"...HEAD
+git diff "origin/$BASE_BRANCH"...HEAD
 ```
 
 ### Step 2: Parallel Review (6 dimensions)
