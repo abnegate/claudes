@@ -155,7 +155,7 @@ class GitTest(unittest.TestCase):
         self.git(repository, 'stash', '--quiet')
         commits = collect.collect_commits(str(repository), AUTHOR, '2026-09-01')
         self.assertEqual(self.subjects(commits), ['docs: add notes'])
-        self.assertEqual(collect.collect_repo_context(str(repository))['recent_subjects'], ['docs: add notes'])
+        self.assertEqual(collect.collect_repository_context(str(repository))['recent_subjects'], ['docs: add notes'])
 
     def test_repositories_sharing_a_name_are_counted_together(self) -> None:
         first = self.repository('one/tool')
@@ -180,7 +180,7 @@ class GitTest(unittest.TestCase):
         (repository / 'fresh.txt').write_text('fresh\n', encoding='utf-8')
         self.git(repository, 'add', 'fresh.txt')
         (repository / 'loose.txt').write_text('loose\n', encoding='utf-8')
-        self.assertEqual(collect.collect_repo_context(str(repository))['uncommitted'], {
+        self.assertEqual(collect.collect_repository_context(str(repository))['uncommitted'], {
             'modified': ['f1', 'f2', 'kept.txt'],
             'added': ['fresh.txt'],
             'deleted': ['f3'],
@@ -191,7 +191,7 @@ class GitTest(unittest.TestCase):
     def test_clean_repository_has_no_uncommitted_paths(self) -> None:
         repository = self.repository('zone')
         self.commit(repository, 'chore: start', '2026-09-22T10:00:00')
-        self.assertNotIn('uncommitted', collect.collect_repo_context(str(repository)))
+        self.assertNotIn('uncommitted', collect.collect_repository_context(str(repository)))
 
     def test_weeks_are_keyed_by_iso_year(self) -> None:
         repository = self.repository('zone')
