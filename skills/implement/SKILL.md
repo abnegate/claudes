@@ -41,7 +41,7 @@ The cycle handles:
 5. **Reviewer** — reviews the merged output, fixes are applied
 6. **Verifier** — confirms all acceptance criteria are met, tests pass, lint clean
 
-The skill runs in *your* context because subagents cannot spawn further subagents — you do the dispatching.
+The skill runs in *your* context: you conduct it (the consolidation skill decides whether to delegate workstreams to `conductor` subagents).
 
 ## Phase 2: Commit
 

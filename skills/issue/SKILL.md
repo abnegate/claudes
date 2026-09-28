@@ -71,7 +71,7 @@ Invoke the **consolidation** skill, which loads the full orchestration cycle int
 Skill(skill="skills:consolidation", args="## Task\n[issue title and description from Phase 0]\n\n## Acceptance criteria\n[from issue details]\n\n## Constraints\n- TDD: every subtask includes tests\n- Follow project conventions discovered in Phase 0\n\n## Working directory\n[cwd]")
 ```
 
-The cycle runs planner → verifier → parallel architects → consolidator → reviewer → verifier in *your* context (subagents cannot spawn further subagents — you do the dispatching).
+The cycle runs planner → verifier → parallel architects → consolidator → reviewer → verifier in *your* context: you conduct it (the consolidation skill decides whether to delegate workstreams to `conductor` subagents).
 
 ## Phase 2: Finalize (PR)
 
