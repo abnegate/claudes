@@ -27,7 +27,7 @@ Run it on `~/Local/` unless the user names another directory. The script auto-de
 python3 <skill base dir>/../../scripts/collect.py ~/Local/ --format json
 ```
 
-Override if the user asks for a different time range, author or profile:
+Override if the user asks for a different time range, author or profile. `--since` takes an ISO date such as `2025-01-01` (relative dates like `3 months ago` are rejected):
 
 ```bash
 python3 <skill base dir>/../../scripts/collect.py ~/Local/ --since 2025-01-01 --author 'Someone Else' --config-dir ~/.claude-work

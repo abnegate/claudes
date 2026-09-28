@@ -26,8 +26,11 @@ from datetime import timedelta
 from functools import cache
 from pathlib import Path
 from typing import Any
+from typing import NoReturn
 
 DEFAULT_WINDOW_DAYS = 90
+ERROR_KEY = 'error'
+NO_COMMITS_ERROR = 'No commits found'
 JSON_FORMAT = 'json'
 CSV_FORMAT = 'csv'
 DATE_FORMAT = '%Y-%m-%d'
@@ -406,7 +409,7 @@ def default_profiles() -> list[Path]:
 
 
 def collect_claude_sessions(since_date: str, profiles: Sequence[Path]) -> list[dict[str, Any]]:
-    since = local_datetime(datetime.fromisoformat(since_date))
+    since = window_start(since_date)
     sessions: dict[str, dict[str, Any]] = {}
     titles: dict[str, str] = {}
     seen_entries: set[str] = set()
@@ -738,7 +741,7 @@ def time_bucket(hour: int) -> str:
 
 def analyze(all_commits: list[dict[str, Any]], repos_data: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
     if not all_commits:
-        return {'error': 'No commits found'}
+        return {ERROR_KEY: NO_COMMITS_ERROR}
 
     total = len(all_commits)
     dates = [commit['date'] for commit in all_commits]
@@ -838,6 +841,18 @@ def to_csv(analysis: dict[str, Any]) -> str:
     return '\n'.join(lines)
 
 
+def since_date(value: str) -> str:
+    try:
+        return window_start(value).strftime(DATE_FORMAT)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f'expected an ISO date such as 2026-01-31, got {value!r}') from None
+
+
+def fail(message: str) -> NoReturn:
+    print(json.dumps({ERROR_KEY: message}))
+    sys.exit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description='Collect developer profile data from git repos and Claude sessions',
@@ -845,7 +860,11 @@ def main() -> None:
     )
     parser.add_argument('base_dir', help='Base directory containing git repos')
     parser.add_argument('--author', help='Git author name (auto-detected if omitted)')
-    parser.add_argument('--since', help='Start date (ISO format, default: 3 months ago)')
+    parser.add_argument(
+        '--since',
+        type=since_date,
+        help=f'Start date in ISO format; the window starts at local midnight (default: {DEFAULT_WINDOW_DAYS} days ago)',
+    )
     parser.add_argument('--format', choices=[JSON_FORMAT, CSV_FORMAT], default=JSON_FORMAT, help='Output format')
     parser.add_argument(
         '--config-dir',
@@ -860,13 +879,11 @@ def main() -> None:
 
     repos = find_repos(args.base_dir)
     if not repos:
-        print(json.dumps({'error': f'No git repos found in {args.base_dir}'}))
-        sys.exit(1)
+        fail(f'No git repos found in {args.base_dir}')
 
     author = args.author or detect_author(repos)
     if not author:
-        print(json.dumps({'error': 'Could not detect git author. Use --author.'}))
-        sys.exit(1)
+        fail('Could not detect git author. Use --author.')
 
     repos_data: dict[str, list[dict[str, Any]]] = {}
     repos_context: dict[str, dict[str, Any]] = {}
@@ -894,6 +911,8 @@ def main() -> None:
         result['claude'] = claude_analysis
 
     if args.format == CSV_FORMAT:
+        if ERROR_KEY in git_analysis:
+            fail(git_analysis[ERROR_KEY])
         print(to_csv(git_analysis))
     else:
         print(json.dumps(result, indent=2))

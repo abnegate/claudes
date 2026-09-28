@@ -70,12 +70,22 @@ class GitTest(unittest.TestCase):
         dates = {'GIT_AUTHOR_DATE': authored, 'GIT_COMMITTER_DATE': committed or authored}
         self.git(repository, 'commit', '--quiet', '--allow-empty', '--message', subject, environment=dates)
 
-    def main(self, *arguments: str) -> dict[str, Any]:
+    def invoke(self, *arguments: str) -> tuple[object, str, str]:
         command_line = mock.patch.object(sys, 'argv', ['collect.py', str(self.root / 'code'), '--author', AUTHOR, *arguments])
         output = io.StringIO()
-        with command_line, contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
-            collect.main()
-        result: dict[str, Any] = json.loads(output.getvalue())
+        errors = io.StringIO()
+        code: object = 0
+        with command_line, contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+            try:
+                collect.main()
+            except SystemExit as stop:
+                code = stop.code
+        return code, output.getvalue(), errors.getvalue()
+
+    def main(self, *arguments: str) -> dict[str, Any]:
+        code, output, errors = self.invoke(*arguments)
+        self.assertEqual(code, 0, errors)
+        result: dict[str, Any] = json.loads(output)
         return result
 
     def subjects(self, commits: list[dict[str, Any]]) -> list[str]:
@@ -181,6 +191,31 @@ class GitTest(unittest.TestCase):
         self.assertEqual(analysis['by_repo_week'], {'zone': ISO_WEEKS})
         rows = collect.to_csv(analysis).splitlines()
         self.assertEqual(rows, ['Week,zone,Total', '2026-W53,2,2', '2027-W01,1,1', 'Total,3,3'])
+
+    def test_since_must_be_an_iso_date(self) -> None:
+        self.commit(self.repository('zone'), 'feat: start', '2026-09-22T10:00:00')
+        code, output, errors = self.invoke('--since', '3 months ago')
+        self.assertEqual(code, 2)
+        self.assertEqual(output, '')
+        self.assertIn("argument --since: expected an ISO date such as 2026-01-31, got '3 months ago'", errors)
+
+    def test_since_with_an_offset_starts_at_that_local_day(self) -> None:
+        repository = self.repository('zone')
+        self.commit(repository, 'feat: day before', '2026-08-30T23:30:00')
+        self.commit(repository, 'feat: same local day', '2026-08-31T23:30:00')
+        session = self.root / '.claude' / 'projects' / '-p' / 'S1.jsonl'
+        session.parent.mkdir(parents=True)
+        entry = {'type': 'user', 'uuid': 'u1', 'sessionId': 'S1', 'timestamp': '2026-09-01T00:00:00.000Z', 'cwd': '/p'}
+        session.write_text(json.dumps(entry) + '\n', encoding='utf-8')
+        result = self.main('--since', '2026-09-01T00:00:00+13:00')
+        self.assertEqual(result['git']['summary']['date_range'], '2026-08-31 to 2026-08-31')
+        self.assertEqual(result['claude']['summary']['total_sessions'], 1)
+
+    def test_csv_without_commits_is_a_clean_error(self) -> None:
+        self.commit(self.repository('zone'), 'feat: old', '2026-01-05T10:00:00')
+        code, output, errors = self.invoke('--since', '2026-09-01', '--format', 'csv')
+        self.assertEqual(code, 1, errors)
+        self.assertEqual(json.loads(output), {'error': 'No commits found'})
 
 
 if __name__ == '__main__':
