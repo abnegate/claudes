@@ -400,7 +400,8 @@ class SessionsTest(unittest.TestCase):
         for value in values:
             with self.subTest(value=value):
                 self.assertEqual(collect.parse_timestamp(value), datetime(2026, 9, 2, 1, 30))
-        for invalid in (None, 'yesterday', 1e30, [], {}):
+        invalid_values: tuple[object, ...] = (None, 'yesterday', 1e30, [], {})
+        for invalid in invalid_values:
             with self.subTest(invalid=invalid):
                 self.assertIsNone(collect.parse_timestamp(invalid))
 
@@ -608,7 +609,7 @@ class SessionsTest(unittest.TestCase):
             self.assistant('S16', 'a5', OPUS, {'output_tokens': MILLION}),
             self.assistant('S16', 'a6', UNKNOWN_MODEL),
         ])
-        analysis = collect.analyze_claude_sessions(collect.collect_claude_sessions(SINCE, [self.default_profile]))
+        analysis = self.analyze(self.default_profile)
         expected = [(OPUS, 24.0), (HAIKU_KEY, 1.0), (SONNET, 0.0025)]
         self.assertEqual(list(analysis['cost_by_model'].items()), expected)
         self.assertEqual(analysis['unpriced_models'], {UNKNOWN_MODEL: 2})

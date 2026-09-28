@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import sys
 import unittest
 from pathlib import Path
@@ -31,20 +30,22 @@ class ClassifyTest(unittest.TestCase):
         )
         for subject, groups in cases:
             with self.subTest(subject=subject):
-                match = re.match(collect.CONVENTIONAL_SUBJECT, subject)
-                self.assertIsNotNone(match)
+                match = collect.CONVENTIONAL_SUBJECT.match(subject)
+                if match is None:
+                    self.fail(f'{subject!r} does not match')
                 self.assertEqual(match.groupdict(), groups)
 
     def test_conventional_pattern_rejects_other_subjects(self) -> None:
         for subject in ('(refactor): x', 'Merge branch x', 'feat x', 'feat(api) x', 'random'):
             with self.subTest(subject=subject):
-                self.assertIsNone(re.match(collect.CONVENTIONAL_SUBJECT, subject))
+                self.assertIsNone(collect.CONVENTIONAL_SUBJECT.match(subject))
 
     def test_legacy_pattern_captures_type(self) -> None:
-        match = re.match(collect.LEGACY_SUBJECT, '(refactor): x')
-        self.assertIsNotNone(match)
+        match = collect.LEGACY_SUBJECT.match('(refactor): x')
+        if match is None:
+            self.fail('the legacy subject does not match')
         self.assertEqual(match['type'], REFACTOR)
-        self.assertIsNone(re.match(collect.LEGACY_SUBJECT, 'refactor: x'))
+        self.assertIsNone(collect.LEGACY_SUBJECT.match('refactor: x'))
 
     def test_scoped_breaking_subject(self) -> None:
         self.assertEqual(collect.classify_commit('feat(api)!: x'), FEAT)

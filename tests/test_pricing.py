@@ -4,6 +4,7 @@ import dataclasses
 import sys
 import unittest
 from collections.abc import Mapping
+from typing import Any
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
@@ -62,6 +63,12 @@ CANONICAL_MODELS = (
 
 
 class PricingTest(unittest.TestCase):
+    def cost(self, model: str, usage: Mapping[str, Any]) -> float:
+        cost = collect.estimate_cost(model, usage)
+        if cost is None:
+            self.fail(f'{model} is unpriced')
+        return cost
+
     def assert_same_rates(self, actual: collect.Pricing, expected: collect.Pricing) -> None:
         self.assertIsInstance(actual, collect.Pricing)
         for field in PRICING_FIELDS:
@@ -81,8 +88,9 @@ class PricingTest(unittest.TestCase):
     def test_pricing_is_a_frozen_dataclass(self) -> None:
         self.assertEqual([field.name for field in dataclasses.fields(collect.Pricing)], PRICING_FIELDS)
         pricing = collect.Pricing(input=1, output=2, cache_write_5m=3, cache_write_1h=4, cache_read=5)
-        with self.assertRaises(dataclasses.FrozenInstanceError):
-            pricing.input = 6
+        for field in PRICING_FIELDS:
+            with self.subTest(field=field), self.assertRaises(dataclasses.FrozenInstanceError):
+                setattr(pricing, field, 6)
 
     def test_pricing_is_the_only_class(self) -> None:
         classes = [
@@ -145,30 +153,30 @@ class PricingTest(unittest.TestCase):
     def test_standard_rates(self) -> None:
         for model, cost in STANDARD_COSTS:
             with self.subTest(model=model):
-                self.assertAlmostEqual(collect.estimate_cost(model, FULL_USAGE), cost, places=PLACES)
+                self.assertAlmostEqual(self.cost(model, FULL_USAGE), cost, places=PLACES)
 
     def test_fast_mode_rates(self) -> None:
         for model, cost in FAST_COSTS:
             with self.subTest(model=model):
-                self.assertAlmostEqual(collect.estimate_cost(model, FAST_USAGE), cost, places=PLACES)
+                self.assertAlmostEqual(self.cost(model, FAST_USAGE), cost, places=PLACES)
 
     def test_fast_mode_without_fast_rates_uses_standard_rates(self) -> None:
-        self.assertAlmostEqual(collect.estimate_cost(SONNET_5, FAST_USAGE), 18.70, places=PLACES)
+        self.assertAlmostEqual(self.cost(SONNET_5, FAST_USAGE), 18.70, places=PLACES)
 
     def test_context_window_suffix_uses_base_rates(self) -> None:
-        cost = collect.estimate_cost('claude-opus-5-5[1m]', FULL_USAGE)
-        self.assertAlmostEqual(cost, collect.estimate_cost(OPUS_5_5, FULL_USAGE), places=PLACES)
+        cost = self.cost('claude-opus-5-5[1m]', FULL_USAGE)
+        self.assertAlmostEqual(cost, self.cost(OPUS_5_5, FULL_USAGE), places=PLACES)
         self.assertAlmostEqual(cost, 37.20, places=PLACES)
 
     def test_cache_writes_without_breakdown_use_five_minute_rate(self) -> None:
         usage = {'cache_creation_input_tokens': MILLION}
-        self.assertAlmostEqual(collect.estimate_cost(OPUS_5, usage), 6.25, places=PLACES)
+        self.assertAlmostEqual(self.cost(OPUS_5, usage), 6.25, places=PLACES)
 
     def test_us_inference_costs_ten_percent_more(self) -> None:
         usage = {'input_tokens': MILLION, 'inference_geo': US_INFERENCE_GEO}
-        self.assertAlmostEqual(collect.estimate_cost(OPUS_5, usage), 5.50, places=PLACES)
+        self.assertAlmostEqual(self.cost(OPUS_5, usage), 5.50, places=PLACES)
         fast_usage = {**FAST_USAGE, 'inference_geo': US_INFERENCE_GEO}
-        self.assertAlmostEqual(collect.estimate_cost(OPUS_5_5, fast_usage), 81.84, places=PLACES)
+        self.assertAlmostEqual(self.cost(OPUS_5_5, fast_usage), 81.84, places=PLACES)
 
     def test_unknown_model_is_unpriced(self) -> None:
         self.assertIsNone(collect.estimate_cost(UNKNOWN_MODEL, FULL_USAGE))
