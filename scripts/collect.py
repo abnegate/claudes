@@ -49,7 +49,8 @@ SESSION_FILE_PATTERN = '*.jsonl'
 USER_ENTRY = 'user'
 ASSISTANT_ENTRY = 'assistant'
 MESSAGE_ENTRIES = (USER_ENTRY, ASSISTANT_ENTRY)
-RELEVANT_ENTRY = re.compile(rb'"type"\s*:\s*"(?:user|assistant)"')
+TITLE_ENTRY = 'custom-title'
+RELEVANT_ENTRY = re.compile(rb'"type"\s*:\s*"(?:user|assistant|custom-title)"')
 TOOL_USE_BLOCK = 'tool_use'
 SKILL_TOOL = 'Skill'
 MAIN_AND_SUBAGENT_SOURCE = 'main+subagent'
@@ -352,13 +353,20 @@ def default_profiles() -> list[Path]:
 def collect_claude_sessions(since_date: str, profiles: Sequence[Path]) -> list[dict[str, Any]]:
     since = datetime.fromisoformat(since_date)
     sessions: dict[str, dict[str, Any]] = {}
+    titles: dict[str, str] = {}
     seen_entries: set[str] = set()
     seen_messages: set[str] = set()
     for relative, paths in find_session_files(profiles, since):
         is_subagent = SUBAGENTS_DIRECTORY in relative.parts
         path_session_id = relative.parts[1] if len(relative.parts) > 2 else relative.stem
         for path in paths:
+            copy_titles: dict[str, str] = {}
             for entry in read_entries(path):
+                session_id = entry.get('sessionId') or path_session_id
+                if entry.get('type') == TITLE_ENTRY:
+                    if isinstance(entry.get('customTitle'), str):
+                        copy_titles[session_id] = entry['customTitle']
+                    continue
                 entry_uuid = entry.get('uuid')
                 if entry.get('type') not in MESSAGE_ENTRIES or entry_uuid in seen_entries:
                     continue
@@ -367,12 +375,13 @@ def collect_claude_sessions(since_date: str, profiles: Sequence[Path]) -> list[d
                     continue
                 if entry_uuid:
                     seen_entries.add(entry_uuid)
-                session_id = entry.get('sessionId') or path_session_id
                 session = sessions.get(session_id)
                 if session is None:
                     session = sessions[session_id] = start_session(session_id, timestamp)
                 record_entry(session, entry, timestamp, is_subagent, seen_messages)
-    finished = [finish_session(session, '') for session in sessions.values()]
+            for session_id, title in copy_titles.items():
+                titles.setdefault(session_id, title)
+    finished = [finish_session(session, titles.get(session['id'], '')) for session in sessions.values()]
     return sorted(finished, key=lambda session: session['created'])
 
 
