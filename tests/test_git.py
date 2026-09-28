@@ -146,6 +146,18 @@ class GitTest(unittest.TestCase):
         self.assertEqual(git['summary']['total_commits'], 4)
         self.assertEqual(git['by_repo'], {'alpha': 3, 'beta': 1})
 
+    def test_clone_without_new_commits_keeps_its_context(self) -> None:
+        alpha = self.repository('alpha')
+        self.commit(alpha, 'feat: one', '2026-09-22T10:00:00')
+        beta = self.root / 'code' / 'beta'
+        self.git(self.root, 'clone', '--quiet', str(alpha), str(beta))
+        (beta / 'draft.txt').write_text('draft\n', encoding='utf-8')
+        self.commit(self.repository('gamma'), 'feat: old', '2026-01-05T10:00:00')
+        git = self.main('--since', '2026-09-01')['git']
+        self.assertEqual(git['by_repo'], {'alpha': 1})
+        self.assertEqual(sorted(git['repo_context']), ['alpha', 'beta'])
+        self.assertEqual(git['repo_context']['beta']['uncommitted'], {'untracked': ['draft.txt']})
+
     def test_stash_is_not_counted(self) -> None:
         repository = self.repository('zone')
         (repository / 'notes.txt').write_text('first\n', encoding='utf-8')

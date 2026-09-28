@@ -260,15 +260,15 @@ def analyze_repositories(repositories: Sequence[str], author: str, since: str) -
     seen_hashes: set[str] = set()
     for repository in repositories:
         found = collect_commits(repository, author, since)
-        commits = unique_commits(found, seen_hashes)
-        seen_hashes.update(commit['hash'] for commit in found)
-        if not commits:
+        if not found:
             continue
         name = os.path.basename(repository)
-        commits_by_repository.setdefault(name, []).extend(commits)
-        all_commits.extend(commits)
         if name not in contexts:
             contexts[name] = collect_repository_context(repository)
+        commits = unique_commits(found, seen_hashes)
+        seen_hashes.update(commit['hash'] for commit in found)
+        commits_by_repository.setdefault(name, []).extend(commits)
+        all_commits.extend(commits)
     return {**analyze(all_commits, commits_by_repository), 'repo_context': contexts}
 
 

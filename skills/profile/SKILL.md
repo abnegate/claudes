@@ -73,6 +73,7 @@ The JSON output has two top-level keys: `git` and `claude`. Use **both** to buil
 - Domain themes from commit messages.
 
 #### Repo context (`repo_context`)
+Every repository with commits in the window has an entry, including a clone whose commits all count toward an earlier clone, so `repo_context` can name repositories that `by_repo` leaves out.
 - **branch**: Current branch name — reveals active work.
 - **recent_subjects**: Last 20 commit subjects — summarize themes in plain language.
 - **uncommitted**: modified, added, deleted, renamed and untracked paths — hints at active WIP.
