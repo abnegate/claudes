@@ -115,7 +115,7 @@ Skill(skill="skills:pr")
 CI needs time to start and report results. Wait for the checks on the pushed head to finish before running pr-fix:
 
 ```bash
-: "${PR_URL:?set PR_URL to the pull request URL}" "${REPO:?set REPO to the absolute path of the local checkout}"
+if [ -z "${PR_URL:-}" ] || [ -z "${REPO:-}" ]; then echo 'set PR_URL and REPO first'; exit 2; fi
 HEAD_SHA=$(git -C "$REPO" rev-parse HEAD) || exit 2
 PREVIOUS_COUNT=0
 for _ in $(seq 1 30); do

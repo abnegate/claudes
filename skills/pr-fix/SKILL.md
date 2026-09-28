@@ -36,7 +36,7 @@ When checks=true and `gh pr checks <pr-ref>` lists pending checks or none yet, f
 #### Wait for CI
 
 ```bash
-: "${PR_URL:?set PR_URL to the pull request URL}" "${REPO:?set REPO to the absolute path of the local checkout}"
+if [ -z "${PR_URL:-}" ] || [ -z "${REPO:-}" ]; then echo 'set PR_URL and REPO first'; exit 2; fi
 HEAD_SHA=$(git -C "$REPO" rev-parse HEAD) || exit 2
 PREVIOUS_COUNT=0
 for _ in $(seq 1 30); do
