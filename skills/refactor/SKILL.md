@@ -16,22 +16,39 @@ Refactor code safely with tests as a safety net.
 
 ## Phase 0: Preparation
 
-### 0.1 Parallel Discovery
+### 0.1 Detect the Stack
+
+Detect the stack from the first manifest in this table's row order that exists at the repository root. `<pm>` is the package manager chosen by lockfile, as in `/build`. Prefer the project's own scripts or Makefile targets when they exist. When tests run in Docker Compose (Appwrite), run the same command inside the service, for example `docker compose exec <service> vendor/bin/phpunit --filter Name`.
+
+| Manifest | Stack | Test all | Test one | Build | Lint | Format | Static analysis | Coverage |
+|---|---|---|---|---|---|---|---|---|
+| build.gradle.kts / build.gradle | Gradle | `./gradlew test` | `./gradlew test --tests "*Name*"` | `./gradlew build` | `./gradlew ktlintCheck` | `./gradlew ktlintFormat` | `./gradlew detekt` | `./gradlew koverReport` |
+| pom.xml | Maven | `mvn test` | `mvn test -Dtest=Name` | `mvn package` | configured plugin | `mvn spotless:apply` if configured | — | `mvn jacoco:report` if configured |
+| composer.json | PHP | `composer test` | `composer test -- --filter Name` | `composer install` | `composer lint` | `composer format` | `composer check` (PHPStan) | `vendor/bin/phpunit --coverage-text` (PCOV/Xdebug) |
+| package.json | Node | `<pm> test` | `<pm> test -- -t "Name"` | `<pm> run build` | `<pm> run lint` | `<pm> run format` / `npx prettier --write .` | `<pm> exec tsc --noEmit` | `<pm> test -- --coverage` |
+| Cargo.toml | Rust | `cargo test` | `cargo test name` | `cargo build` | `cargo clippy -- -D warnings` | `cargo fmt` | `cargo clippy -- -D warnings` | `cargo llvm-cov` if installed |
+| go.mod | Go | `go test ./...` | `go test -run Name ./...` | `go build ./...` | `go vet ./...` | `gofmt -w .` | `golangci-lint run` if configured | `go test -cover ./...` |
+| pyproject.toml / setup.py | Python | `pytest` | `pytest -k name` | `pip install -e .` | `ruff check .` | `ruff format .` | `mypy .` if configured | `pytest --cov` |
+
+Commands in this skill name a column of this table. In the agent prompts below, replace a placeholder such as `<Test all command>` with the detected stack's command from that column.
+
+### 0.2 Parallel Discovery
 
 Launch **three agents in parallel** to gather all baseline information simultaneously:
 
 **Agent A: Coverage Report**
 ```
 Task: Generate the test coverage report for the affected area.
-Run `./gradlew koverReport` and read the coverage output.
+Run `<Coverage command>` and read the coverage output.
 Report the coverage percentage for every file in the refactoring scope.
 Flag any file below 80% coverage.
+If the project has no coverage tool set up, report that instead of a percentage.
 ```
 
 **Agent B: Baseline Tests**
 ```
 Task: Run the full test suite and report results.
-Run `./gradlew test`.
+Run `<Test all command>`.
 Report pass/fail counts and list any failures with their full stack traces.
 ```
 
@@ -40,7 +57,7 @@ Report pass/fail counts and list any failures with their full stack traces.
 Task: Analyze the refactoring scope for `$ARGUMENTS`.
 Determine what is being refactored: single file, multiple related files, entire module, or cross-cutting pattern.
 Identify and list:
-- Every public API surface (public functions, classes, interfaces, data classes)
+- Every public API surface (public functions, classes, interfaces, data types)
 - Expected inputs and outputs for each public entry point
 - Edge cases and error paths
 - Integration points with other modules
@@ -50,11 +67,11 @@ Write findings to `.claude/plans/PLAN-refactor-scope.md`.
 
 **Wait for all three agents to complete before continuing.**
 
-### 0.2 Evaluate Results
+### 0.3 Evaluate Results
 
 Review the outputs from all three agents:
 - If Agent B reported test failures: **STOP. Fix failures before proceeding.**
-- If Agent A reported coverage below 80% for any file in scope: proceed to Phase 1.
+- If Agent A reported coverage below 80% for any file in scope, or no coverage tool: proceed to Phase 1.
 - If coverage is adequate (>=80%): skip Phase 1, proceed to Phase 2.
 
 ## Phase 1: Add Missing Tests
@@ -65,8 +82,8 @@ Launch **parallel agents per dimension** to identify every untested path. Create
 
 **Agent: Branch Coverage**
 ```
-Task: Analyze the coverage report and source code for `$ARGUMENTS`.
-List every uncovered branch (if/else, when, try/catch) with file path and line numbers.
+Task: Analyze the coverage report (if Phase 0 produced one) and source code for `$ARGUMENTS`.
+List every uncovered branch (if/else, switch/match, try/catch) with file path and line numbers.
 For each uncovered branch, write a one-line description of what condition triggers it.
 ```
 
@@ -95,10 +112,7 @@ Tests that capture CURRENT behavior (even if it seems wrong):
 - These tests lock in behavior during refactoring
 - Work through the merged list from 1.1, highest-priority gaps first
 
-```bash
-# Verify new tests pass
-./gradlew test
-```
+Run the stack's Test all command to verify the new tests pass.
 
 **STOP IF TESTS FAIL.** Fix tests until green.
 
@@ -115,7 +129,9 @@ Then launch a **verifier** agent (`subagent_type: "verifier"`) to validate the p
 
 ## Phase 3: Execute Refactoring
 
-**Independent steps** (touching different files with no dependency): launch ALL simultaneously as worktree-isolated **architect** agents, then merge via the **consolidator**.
+Commit any characterization tests from Phase 1 first (`skills:commit` with `test(<scope>): …`), because uncommitted work is not part of BASE. Then record BASE and follow the consolidation skill's Worktree BASE protocol for every worktree agent.
+
+**Independent steps** (touching different files with no dependency): launch ALL simultaneously as **architect** agents, each in its own worktree, then merge via the **consolidator**.
 
 **Sequential steps** (each depends on the previous): execute one at a time:
 
@@ -132,9 +148,7 @@ Single, focused change:
 
 ### 3.2 Run Tests
 
-```bash
-./gradlew test
-```
+Run the stack's Test all command.
 
 **STOP IF TESTS FAIL.** Fix or revert before continuing.
 
@@ -143,7 +157,7 @@ Single, focused change:
 Delegate to the `skills:commit` command:
 
 ```
-Skill(skill="skills:commit", args="(refactor): [specific change made]")
+Skill(skill="skills:commit", args="refactor(<scope>): [specific change made]")
 ```
 
 ### 3.4 Repeat
@@ -152,11 +166,11 @@ Continue with next step until refactoring complete.
 
 ## Phase 4: Review
 
-Launch a **reviewer** agent (`subagent_type: "reviewer"`) to review the full diff (`git diff main...HEAD`). Focus: behavior preservation, no accidental API changes, code quality improvement. Fix any critical/major issues found.
+Launch a **reviewer** agent (`subagent_type: "reviewer"`) to review the full diff (`git diff "$BASE"...HEAD`, with the BASE recorded at the start of Phase 3). Focus: behavior preservation, no accidental API changes, code quality improvement. Fix any critical/major issues found.
 
 ## Phase 5: Final Verification
 
-Launch a **verifier** agent (`subagent_type: "verifier"`) in post-verification mode. It confirms: tests pass (count not decreased from baseline), lint clean, build succeeds, no behavior changes, all public APIs preserved.
+Launch a **verifier** agent (`subagent_type: "verifier"`) in post-verification mode with the stack's Test all, Lint and Build commands. It confirms: tests pass (count not decreased from baseline), lint clean, build succeeds, no behavior changes, all public APIs preserved.
 
 ## Common Refactoring Patterns
 
@@ -185,7 +199,7 @@ When names don't reflect purpose.
 Extract shared logic into the domain that owns it — no helper/utility files.
 
 ### Simplify Conditionals
-Replace complex if/else with when, early returns, or polymorphism.
+Replace complex if/else with switch/match expressions, early returns, or polymorphism.
 
 ### Replace Magic Values
 Extract constants with meaningful names.
