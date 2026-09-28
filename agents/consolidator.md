@@ -44,7 +44,7 @@ Execute in this order:
 - Every file touched by 2+ branches: manually reviewed for semantic correctness
 - No duplicate imports, function definitions, or type declarations
 - All new symbols properly exported/imported where needed
-- Tests pass (or are noted as pre-existing failures)
+- Tests pass (there are no "pre-existing" failures — fix every one)
 - Linter passes
 - Type-checker passes
 

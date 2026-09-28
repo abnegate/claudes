@@ -16,7 +16,7 @@ House rules and load-bearing patterns for writing production PHP 8.3+ code. **As
 - **Domain grouping** — no `helpers/`, no `utils/`, no `common.php`
 - **Sparse updates + fix-nearby-violations discipline**
 - **Project structure** — `src/` vs `app/` vs `bin/` vs `tests/`, `autoload-dev` for test code
-- **Composer** — constraint style discipline (pick one per project), VCS repos for forks, standard script names, deploy flags, platform pinning
+- **Composer** — `^` caret constraints (never `~` or `*`), VCS repos for forks, standard script names, deploy flags, platform pinning
 - **Pint config** — exact `pint.json` rules
 - **PHPStan** — target `level: max` in greenfield, baseline discipline
 - **Rector** — typical `rector.php` for 8.4 + PHPUnit 12 migration

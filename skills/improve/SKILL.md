@@ -71,7 +71,7 @@ Launch six **reviewer** agents in parallel, each focused on a different dimensio
 **Agent D — Readability:**
 - Unclear naming (variables, functions, classes that don't express intent)
 - Complex control flow that could be simplified (deep nesting, long methods)
-- Missing or misleading comments
+- Misleading comments, or comments that narrate what the code already says
 - Magic numbers and strings that should be constants/enums
 - Dead code, unused imports, commented-out blocks
 

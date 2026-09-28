@@ -112,6 +112,6 @@ Return the PR URL when complete.
 ## Checklist Before PR
 
 - [ ] All tests pass
-- [ ] Code is formatted (`./gradlew ktlintFormat`)
+- [ ] Code is formatted and linted (PHP: `composer lint`, Kotlin: ktlint, Rust: `cargo fmt` + `cargo clippy -D warnings`, JS/TS: Prettier)
 - [ ] No secrets in code
 - [ ] SDK regenerated if API changed

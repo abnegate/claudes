@@ -254,7 +254,7 @@ Single quotes by default. Double quotes only when the string contains a single q
 
 - **Never** use section-header comments like `// ---------------- HANDLERS ----------------` or `// === Section ===`. If you see them, delete them.
 - PHPDoc only for non-trivial generic or shape information (`@param array<string, mixed>`, `@return list<Document>`, `@throws`). Do NOT add PHPDoc that just repeats the type signature.
-- Inline `//` only for non-obvious logic. Do not narrate what the code already says.
+- Inline `//` only when intent can't be inferred from the code (external-bug workaround, deliberately empty block, subtle invariant). Do not narrate what the code already says.
 - `/** @phpstan-ignore ... */` inline when silencing PHPStan — always add a reason.
 
 ### 3.5 Domain-driven organization
@@ -315,17 +315,15 @@ Test-only classes go in `autoload-dev`, not `autoload` — `composer install --n
 
 ## 5. Composer
 
-### 5.1 Constraint style — pick one per project
+### 5.1 Constraint style — `^` carets
 
 | Style | Meaning | When |
 |---|---|---|
-| `^1.2` | `>=1.2, <2.0` | Default for public libraries following strict SemVer |
-| `~1.2.3` | `>=1.2.3, <1.3.0` | When you need to lock the patch range tightly |
-| `1.2.*` | `>=1.2, <1.3` | Ecosystems where minor = breaking; pre-1.0 packages |
-| `5.*` | `>=5.0, <6.0` | Major pin, equivalent to `^5.0` post-1.0 |
+| `^1.2` | `>=1.2, <2.0` | Default for every dependency |
+| `^0.33` | `>=0.33, <0.34` | Pre-1.0 packages — the caret already locks the minor |
 | `dev-branchname` | VCS branch | For forks, paired with a `repositories` entry |
 
-**Do not mix styles within one `composer.json`.** Pick one convention per project and stick with it.
+**Never `~` or `*` wildcards.** `"utopia-php/framework": "^0.33"`, not `"0.33.*"` or `"~0.33.0"`.
 
 ### 5.2 VCS repositories for forks
 
@@ -714,7 +712,7 @@ Drop-in compatible with PHPUnit. CI should always use paratest.
 | About to do | Do instead | Why |
 |---|---|---|
 | `composer update` in production | `composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader` from a committed `composer.lock` | Lockfile is the contract. |
-| Mixing `^`, `~`, `*` styles in one `composer.json` | Pick one convention per project and stick with it | Consistency > perfect per-package choice. |
+| Writing a `~` or `*` constraint (`"~0.33.0"`, `"0.33.*"`) | `"^0.33"` caret range | House rule: carets for every dependency. |
 | Writing a patch file / `vendor-patches/` / copying a dep locally | Fix the dep upstream, commit, push, `composer update <package>` | No shims. |
 | Committing without running `composer format` / `composer lint` | Format first, then commit | Pre-commit hook if possible. |
 | Lowering PHPStan level to make an error disappear | Fix the error, or add a line to `phpstan-baseline.neon` with a dated `// TODO: revisit` | Shrink the baseline over time; never grow it. |

@@ -103,7 +103,7 @@ Using the unified manifest from Phase 1, partition the affected files into group
 
 1. **Dead code removal**: Delete confirmed unused private functions, classes, parameters. Remove commented-out code blocks. Clean up or remove stale TODO comments.
 2. **Deprecated code migration**: Where a replacement is specified in the `@Deprecated` annotation, migrate callers to the replacement. Where we own the deprecated symbol and it has zero external callers, remove it.
-3. **Technical debt quick wins**: Fix items that are High severity + Low effort or Low severity + Low effort. For High effort items, add a `// TODO(cleanup): [description]` or create a GitHub issue.
+3. **Technical debt quick wins**: Fix items that are High severity + Low effort or Low severity + Low effort. For High effort items, create a GitHub issue.
 4. **Code style normalization**: Fix naming violations, remove section-header comments (`// ---`, `// ===`), standardize error handling within each file.
 5. **Documentation cleanup**: Remove stale/obvious comments. Add KDoc to public APIs that are missing it. Fix mismatched `@param`/`@return` tags.
 

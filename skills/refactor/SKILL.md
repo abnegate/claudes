@@ -182,7 +182,7 @@ When a class has too many responsibilities.
 When names don't reflect purpose.
 
 ### Remove Duplication
-Extract shared logic to helper/utility.
+Extract shared logic into the domain that owns it — no helper/utility files.
 
 ### Simplify Conditionals
 Replace complex if/else with when, early returns, or polymorphism.
