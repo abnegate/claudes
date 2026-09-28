@@ -52,7 +52,7 @@
 - When given a multi-step task, track progress with TaskCreate. If one step fails, fix it and continue to the next step — don't abandon the whole task or ask whether to continue.
 - If context is getting long and there's remaining work, spawn a continuation agent with a detailed handoff summary: what's done, what's left, the current git state, which files were touched, and any decisions made. The continuation agent must be self-contained.
 - When spawning agents for parallel work, always launch them in a single message to maximize concurrency. Never serialize independent work.
-- Prefer `/loop` for tasks that require monitoring or iteration — waiting for CI, polling for changes, iterating on review cycles.
+- Prefer `/loop` for tasks that require monitoring or iteration — waiting for CI when a skill has no wait of its own, polling for changes, iterating on review cycles.
 - After completing a fix or implementation, always verify by running the relevant tests/build/lint before reporting success. "I made the change" is not done — "the change passes all checks" is done.
 
 ## Pull Requests & Merging
