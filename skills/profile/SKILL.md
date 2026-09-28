@@ -9,22 +9,26 @@ Build a comprehensive developer profile by combining git commit activity with Cl
 
 ## How it works
 
-A collection script at `scripts/collect.py` in the plugin/repo root scans git repos for commit metadata and reads Claude Code session files from `~/.claude/projects/`. It outputs a single JSON payload with two top-level sections: `git` and `claude`.
+A collection script at `scripts/collect.py` in the plugin root scans git repos for commit metadata and reads the Claude Code session files of every profile. It outputs a single JSON payload with two top-level sections: `git` and `claude`. It needs Python 3.9 or later and nothing outside the standard library.
+
+- **Profiles**: `~/.claude`, every `~/.claude-*` directory and `$CLAUDE_CONFIG_DIR`, each only when it has a `projects/` directory, deduplicated by physical path. `--config-dir PATH` (repeatable) scans only the given directories instead. `claude.profiles_scanned` lists the profiles read.
+- **Copied sessions**: profiles often hold copies of the same session file. Copies are grouped by their path relative to `projects/`. The largest copy is read, plus any copy of a different size (a session resumed in another profile), and `user`/`assistant` entries are unioned by `uuid`, so every message counts once. Copies last modified before `--since` are skipped.
+- **Titles**: a session's title is its last `custom-title` entry; when copies disagree, the largest copy wins.
 
 ## Step 1: Collect the data
 
-Locate the script. It lives at `scripts/collect.py` relative to the plugin root (sibling to `commands/`). If the path isn't obvious, use Glob with `**/scripts/collect.py` under `~/.claude/plugins/cache/claudes/` or the repo checkout to find it.
+The script is `<skill base dir>/../../scripts/collect.py`, where the skill base directory is the one printed when this skill loads.
 
-Run it. The base directory defaults to `~/Local/` unless the user specifies otherwise. The script auto-detects the git author and defaults to the last 90 days.
+Run it on `~/Local/` unless the user names another directory. The script auto-detects the git author and defaults to the last 90 days, which takes about 30 seconds; give wider `--since` ranges a longer Bash timeout.
 
 ```bash
-python3 <plugin-root>/scripts/collect.py ~/Local/ --format json
+python3 <skill base dir>/../../scripts/collect.py ~/Local/ --format json
 ```
 
-Override if the user asks for a different time range or author:
+Override if the user asks for a different time range, author or profile:
 
 ```bash
-python3 <plugin-root>/scripts/collect.py ~/Local/ --since 2025-01-01 --author "Someone Else"
+python3 <skill base dir>/../../scripts/collect.py ~/Local/ --since 2025-01-01 --author 'Someone Else' --config-dir ~/.claude-work
 ```
 
 ## Step 2: Interpret and present
@@ -78,6 +82,15 @@ The JSON output has two top-level keys: `git` and `claude`. Use **both** to buil
 - Total turns, average turns per session
 - Total tool calls, average tools per session
 - Active days and sessions per active day
+
+#### Cost by model (`cost_by_model`, `unpriced_models`)
+Costs use the list prices from the pricing page (`PRICING_SOURCE` in the script):
+- Cache writes are billed at the 5-minute or 1-hour rate from the `cache_creation` breakdown; without a breakdown, all `cache_creation_input_tokens` are billed at the 5-minute rate.
+- Fast mode (`usage.speed` is `fast`) uses the fast rates for Opus 5.5, Opus 5 and Opus 4.8. US-only inference (`usage.inference_geo` is `us`) costs 1.1×.
+- Claude Code copies one API response's full `usage` onto every content-block entry, so cost is computed once per `message.id` (the entry's `uuid` when there is none), while message counts stay per entry.
+- `cost_by_model` maps each canonical model (such as `claude-opus-5-5`, with `[1m]` and date suffixes stripped) to USD, most expensive first.
+- `unpriced_models` maps each model without a known price, by raw name, to its assistant-message count. Such models are never priced as another model, so a non-empty map means the total understates spend — say so.
+- `<synthetic>` costs nothing and appears in neither.
 
 #### Duration (`duration`)
 - Median, average, and max session length in minutes
