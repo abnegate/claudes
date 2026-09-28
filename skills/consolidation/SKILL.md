@@ -63,7 +63,7 @@ If the task is genuinely long, run it anyway. If you run out of context, spawn a
 
 ## The cycle
 
-Execute these stages in order. Do not skip stages.
+Execute these stages in order. Do not skip stages except as listed under When to use the full cycle vs partial.
 
 ### Stage 1: Plan
 
@@ -100,11 +100,9 @@ Each agent prompt MUST include:
 3. Project conventions and relevant CLAUDE.md rules
 4. Awareness that other agents are working in parallel — focus on your own subtask, commit when done
 5. The exact files to read first and files to create/modify
-6. BASE, and in explicit mode the repo, its branch and absolute worktree path; the architect's own Worktree BASE protocol covers the rest, including its report
+6. BASE, and in explicit mode the repo, its branch and absolute worktree path (Worktree BASE protocol)
 7. Commit rules: commit on its own branch in the scoped format (`type(scope): subject`), never push
 8. Its depth, and "do not spawn subagents unless granted a budget" (grant part of yours when a subtask needs helpers)
-
-Wait for ALL agents in the wave to complete before starting the next wave, including every batch when the wave exceeds the concurrency budget.
 
 ### Stage 4: Consolidate
 
@@ -173,7 +171,7 @@ A multi-repo task always nests: one conductor per repo.
 
 How the top-level conductor runs Stage 3 with workstreams:
 1. Record BASE and create each workstream's integration worktree (git bookkeeping): `git -C <repo> worktree add -b ws-<workstream> <abs path> <BASE>`.
-2. Spawn all independent conductors (`subagent_type: "conductor"`) in one message. They may run in the background while you end your turn; notifications wake you.
+2. Spawn all independent conductors (`subagent_type: "conductor"`) in one message.
 3. Give each conductor its workstream slice (scope and acceptance criteria), the repo, its integration branch and absolute worktree path, BASE, its depth (1), its concurrency budget, the verify commands, the project conventions, and the Workstream report format below.
 4. Dependent workstreams wait for a later wave, branched from the BASE recorded after the earlier wave is integrated.
 
@@ -210,8 +208,8 @@ Open items for the top level: <cross-workstream wiring, decisions, conflicts, or
 ## Coordination rules
 
 - **Never run stages out of order.** Plan before verify. Verify before execute. Execute before review.
-- **Always wait for all agents in a wave before starting the next wave**, including every batch when the wave exceeds the concurrency budget. Partial results from an incomplete wave cannot feed the next wave.
-- **Always launch wave N's agents in a single message** with multiple `Agent` tool calls, in budget-sized batches when the wave exceeds the concurrency budget — never serialize independent subtasks.
+- **Always wait for all agents in a wave before starting the next wave**. Partial results from an incomplete wave cannot feed the next wave.
+- **Always launch wave N's agents in a single message** with multiple `Agent` tool calls — never serialize independent subtasks.
 - **Planner-verifier loop**: iterate until approved. Escalate to the user only if the same critical issue persists after revision.
 - **Review-fix loop**: raise the severity floor each iteration (all → major+ → critical only). Stop when clean at the current floor.
 - **Consolidator runs exactly once per wave.** Multiple consolidation passes indicate a planning failure.
@@ -219,7 +217,7 @@ Open items for the top level: <cross-workstream wiring, decisions, conflicts, or
 
 ## What you do NOT do
 
-- **Write code yourself** — not even "small" fixes. Spawn an agent. Always. The only Bash commands you may run are read-only commands and git bookkeeping (`git worktree add/remove/prune`, `git branch`, `git fetch`, `git rev-parse`). File edits and commits go through a spawned agent.
+- **Write code yourself** — not even "small" fixes. Spawn an agent. Always.
 - Skip the verifier to save time (it catches expensive mistakes)
 - Spawn agents without a plan (the planner exists for a reason)
 - Make design decisions (flag genuine ambiguity for the user — not scope trade-offs you could resolve by running the planner)
@@ -230,6 +228,6 @@ Open items for the top level: <cross-workstream wiring, decisions, conflicts, or
 
 ## Performance guidelines
 
-- **Maximize wave 1** — the more parallel work in the first wave, the faster overall execution. No upper limit on subtask count; launch waves in budget-sized batches.
+- **Maximize wave 1** — the more parallel work in the first wave, the faster overall execution. No upper limit on subtask count.
 - **Front-load reading** in the planner so architect prompts are precise.
 - **Tests are subtasks** — write them in parallel with implementation, not after.
