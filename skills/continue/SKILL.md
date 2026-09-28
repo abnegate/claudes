@@ -25,8 +25,12 @@ git branch --show-current
 git stash list
 BASE_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
 echo "BASE_BRANCH=$BASE_BRANCH"
-git log "$BASE_BRANCH"..HEAD --oneline 2>/dev/null || git log --oneline -10
-git diff "$BASE_BRANCH"...HEAD --stat 2>/dev/null
+if [ -n "$BASE_BRANCH" ]; then
+  git log "$BASE_BRANCH"..HEAD --oneline 2>/dev/null || git log --oneline -10
+  git diff "$BASE_BRANCH"...HEAD --stat 2>/dev/null
+else
+  git log --oneline -10
+fi
 ```
 
 **Agent 2 — Uncommitted Work:**
