@@ -14,6 +14,7 @@
 
 ## Code Style
 
+- Minimise comments — default to none. Code must be self-explanatory through clear names, small functions, and typed values; if a comment is needed to explain *what* the code does, the code is too messy — fix the code instead. Put the *why* (rationale, tradeoffs, the reason behind a non-obvious value) in the commit message, not inline. Only keep an inline comment when intent genuinely cannot be inferred from code: an external-bug workaround, a deliberately empty block, or a subtle invariant a reader would otherwise violate. This is the default for every PR — do not narrate the code with comments. (Test assertion/failure messages are not comments — keep them.)
 - Never use "section header" style comments like `// ---` or `// ===` and if you see any, remove them.
 - Prefer typed config objects over associative arrays/maps.
 - Use readonly classes with typed constructor properties where the language supports it.
@@ -31,7 +32,7 @@
 
 - Singular nouns for namespaces: `Adapter` not `Adapters` — a namespace is a folder, plurality is implied.
 - When extending a Utopia library in Appwrite or Cloud, use `src/Utopia` namespace: `Appwrite\Utopia\Database\Adapter\MySQL` not `Appwrite\Database\Adapter\MySQL`.
-- Dependency versions: use `*` wildcard not `~`/`^` ranges. `"utopia-php/framework": "0.33.*"` not `"~0.33.0"`.
+- Dependency versions: use `^` caret ranges, e.g. `"utopia-php/framework": "^0.33"`, not `*` wildcards or `~`.
 - First-class callable syntax: `$this->action(...)` not `[$this, 'action']`.
 - Use `array_push($items, ...$new)` instead of `$items = array_merge($items, $new)` in loops — merge copies the entire array every iteration.
 - Use `array_values()` after `unset()` or `array_unique()` to re-index and keep the array a list.
