@@ -10,21 +10,51 @@ Outputs JSON (default) or CSV with rich commit metadata and Claude usage data.
 from __future__ import annotations
 
 import argparse
-import glob as globmod
 import json
 import os
 import re
 import subprocess
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
+from collections import defaultdict
 from collections.abc import Iterator
 from collections.abc import Mapping
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from functools import cache
 from pathlib import Path
 from typing import Any
+
+DEFAULT_WINDOW_DAYS = 90
+JSON_FORMAT = 'json'
+CSV_FORMAT = 'csv'
+DATE_FORMAT = '%Y-%m-%d'
+TIME_FORMAT = '%H:%M'
+WEEKDAY_FORMAT = '%A'
+WEEK_FORMAT = '%Y-W%V'
+MONTH_FORMAT = '%Y-%m'
+WEEKDAYS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+WEEKEND = ('Saturday', 'Sunday')
+TIME_BUCKETS = ((5, 9, 'early_morning'), (9, 12, 'morning'), (12, 14, 'lunch'), (14, 17, 'afternoon'), (17, 21, 'evening'))
+NIGHT_BUCKET = 'night'
+
+GIT_DIRECTORY = '.git'
+COMMIT_LOG_FORMAT = '%H%x00%aI%x00%s'
+COMMIT_FIELD_SEPARATOR = '\x00'
+MODIFIED_STATUSES = (' M', 'M ', 'MM')
+ADDED_STATUSES = ('A ', 'AM')
+UNTRACKED_STATUS = '??'
+SUBJECT_PUNCTUATION = '()[]{}.,;:!?"\'-'
+SUBJECT_STOP_WORDS = frozenset({
+    'the', 'a', 'an', 'and', 'or', 'to', 'in', 'for', 'of', 'on', 'with', 'is', 'it', 'from', 'by', 'at', 'as', 'this', 'that',
+})
+TITLE_WORD_SEPARATORS = re.compile(r'[\s/\\.,;:!?()\[\]{}"\'-]+')
+TITLE_STOP_WORDS = SUBJECT_STOP_WORDS | {
+    'me', 'my', 'i', 'can', 'you', 'how', 'what', 'we', 'do', 'not',
+    'all', 'but', 'so', 'if', 'be', 'are', 'was', 'has', 'have',
+}
 
 PRICING_SOURCE = 'https://platform.claude.com/docs/en/about-claude/pricing.md'
 US_INFERENCE_MULTIPLIER = 1.1
@@ -56,6 +86,7 @@ SKILL_TOOL = 'Skill'
 MAIN_AND_SUBAGENT_SOURCE = 'main+subagent'
 SUBAGENT_ONLY_SOURCE = 'subagent-only'
 MAIN_ONLY_SOURCE = 'main-only'
+UNKNOWN_SOURCE = 'unknown'
 
 
 @dataclass(frozen=True)
@@ -96,23 +127,21 @@ FAST_MODE_PRICING: dict[str, Pricing] = {
 }
 
 
-def find_repos(base_dir, max_depth=3):
-    """Find all git repositories under base_dir."""
-    repos = []
+def find_repos(base_dir: str, max_depth: int = 3) -> list[str]:
+    repos: list[str] = []
     base = Path(base_dir).resolve()
-    for root, dirs, files in os.walk(base):
+    for root, directories, _ in os.walk(base):
         depth = len(Path(root).relative_to(base).parts)
         if depth >= max_depth:
-            dirs.clear()
+            directories.clear()
             continue
-        if '.git' in dirs:
+        if GIT_DIRECTORY in directories:
             repos.append(root)
-            dirs.remove('.git')
+            directories.remove(GIT_DIRECTORY)
     return sorted(repos)
 
 
-def detect_author(repos):
-    """Detect the git author from repo config."""
+def detect_author(repos: Sequence[str]) -> str | None:
     for repo in repos:
         try:
             name = subprocess.check_output(
@@ -126,46 +155,41 @@ def detect_author(repos):
     return None
 
 
-def collect_commits(repo_path, author, since):
-    """Collect commits from a single repo with rich metadata."""
-    fmt = '%H%x00%aI%x00%aN%x00%aE%x00%s'
+def collect_commits(repo_path: str, author: str, since: str) -> list[dict[str, Any]]:
     try:
-        args = ['git', '-C', repo_path, 'log', f'--author={author}',
-                f'--since={since}', f'--format={fmt}', '--all']
-        output = subprocess.check_output(args, stderr=subprocess.DEVNULL, text=True)
+        arguments = ['git', '-C', repo_path, 'log', f'--author={author}',
+                     f'--since={since}', f'--format={COMMIT_LOG_FORMAT}', '--all']
+        output = subprocess.check_output(arguments, stderr=subprocess.DEVNULL, text=True)
     except subprocess.CalledProcessError:
         return []
 
-    commits = []
+    commits: list[dict[str, Any]] = []
     for line in output.strip().split('\n'):
-        if not line:
+        fields = line.split(COMMIT_FIELD_SEPARATOR, 2)
+        if len(fields) < 3:
             continue
-        parts = line.split('\x00')
-        if len(parts) < 5:
-            continue
-        hash_, date_iso, name, email, subject = parts[0], parts[1], parts[2], parts[3], parts[4]
+        commit_hash, date_iso, subject = fields
         try:
-            dt = datetime.fromisoformat(date_iso)
+            committed = datetime.fromisoformat(date_iso)
         except ValueError:
             continue
         commits.append({
-            'hash': hash_[:8],
+            'hash': commit_hash[:8],
             'datetime': date_iso,
-            'date': dt.strftime('%Y-%m-%d'),
-            'time': dt.strftime('%H:%M'),
-            'hour': dt.hour,
-            'weekday': dt.strftime('%A'),
-            'weekday_num': dt.isoweekday(),
-            'week': dt.strftime('%Y-W%V'),
-            'month': dt.strftime('%Y-%m'),
+            'date': committed.strftime(DATE_FORMAT),
+            'time': committed.strftime(TIME_FORMAT),
+            'hour': committed.hour,
+            'weekday': committed.strftime(WEEKDAY_FORMAT),
+            'weekday_num': committed.isoweekday(),
+            'week': committed.strftime(WEEK_FORMAT),
+            'month': committed.strftime(MONTH_FORMAT),
             'subject': subject,
         })
     return commits
 
 
-def collect_repo_context(repo_path):
-    """Collect qualitative context: branch, recent subjects, uncommitted work."""
-    context = {}
+def collect_repo_context(repo_path: str) -> dict[str, Any]:
+    context: dict[str, Any] = {}
 
     try:
         branch = subprocess.check_output(
@@ -183,9 +207,9 @@ def collect_repo_context(repo_path):
         ).strip()
         if status:
             lines = status.split('\n')
-            modified = [l[3:] for l in lines if l[:2] in (' M', 'M ', 'MM')]
-            added = [l[3:] for l in lines if l[:2] in ('A ', 'AM')]
-            untracked = [l[3:] for l in lines if l[:2] == '??']
+            modified = [line[3:] for line in lines if line[:2] in MODIFIED_STATUSES]
+            added = [line[3:] for line in lines if line[:2] in ADDED_STATUSES]
+            untracked = [line[3:] for line in lines if line[:2] == UNTRACKED_STATUS]
             context['uncommitted'] = {}
             if modified:
                 context['uncommitted']['modified'] = modified
@@ -234,28 +258,26 @@ def classify_commit(subject: str) -> str:
     return 'other'
 
 
-def compute_streaks(dates):
-    """Compute commit streaks from a sorted list of date strings."""
+def compute_streaks(dates: list[str]) -> dict[str, Any]:
     if not dates:
         return {'current': 0, 'longest': 0, 'longest_start': None, 'longest_end': None}
 
-    unique_dates = sorted(set(dates))
-    parsed = [datetime.strptime(d, '%Y-%m-%d') for d in unique_dates]
+    days = [datetime.strptime(date, DATE_FORMAT) for date in sorted(set(dates))]
 
-    streaks = []
-    start = parsed[0]
-    prev = parsed[0]
-    for d in parsed[1:]:
-        if (d - prev).days == 1:
-            prev = d
+    streaks: list[tuple[datetime, datetime]] = []
+    start = days[0]
+    previous = days[0]
+    for day in days[1:]:
+        if (day - previous).days == 1:
+            previous = day
         else:
-            streaks.append((start, prev))
-            start = d
-            prev = d
-    streaks.append((start, prev))
+            streaks.append((start, previous))
+            start = day
+            previous = day
+    streaks.append((start, previous))
 
-    longest = max(streaks, key=lambda s: (s[1] - s[0]).days + 1)
-    longest_len = (longest[1] - longest[0]).days + 1
+    longest = max(streaks, key=lambda streak: (streak[1] - streak[0]).days + 1)
+    longest_length = (longest[1] - longest[0]).days + 1
 
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     last_streak = streaks[-1]
@@ -266,21 +288,18 @@ def compute_streaks(dates):
 
     return {
         'current': current,
-        'longest': longest_len,
-        'longest_start': longest[0].strftime('%Y-%m-%d'),
-        'longest_end': longest[1].strftime('%Y-%m-%d'),
+        'longest': longest_length,
+        'longest_start': longest[0].strftime(DATE_FORMAT),
+        'longest_end': longest[1].strftime(DATE_FORMAT),
     }
 
 
-def parse_timestamp(ts):
-    """Parse a timestamp that may be an ISO string or numeric epoch."""
-    if ts is None:
-        return None
-    if isinstance(ts, (int, float)):
-        return datetime.fromtimestamp(ts / 1000 if ts > 1e10 else ts)
-    if isinstance(ts, str):
+def parse_timestamp(value: Any) -> datetime | None:
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value / 1000 if value > 1e10 else value)
+    if isinstance(value, str):
         try:
-            return datetime.fromisoformat(ts.replace('Z', '+00:00')).replace(tzinfo=None)
+            return datetime.fromisoformat(value.replace('Z', '+00:00')).replace(tzinfo=None)
         except ValueError:
             return None
     return None
@@ -521,11 +540,11 @@ def finish_session(session: dict[str, Any], title: str) -> dict[str, Any]:
     return {
         'id': session['id'],
         'created': created.isoformat(),
-        'date': created.strftime('%Y-%m-%d'),
+        'date': created.strftime(DATE_FORMAT),
         'hour': created.hour,
-        'weekday': created.strftime('%A'),
-        'week': created.strftime('%Y-W%V'),
-        'month': created.strftime('%Y-%m'),
+        'weekday': created.strftime(WEEKDAY_FORMAT),
+        'week': created.strftime(WEEK_FORMAT),
+        'month': created.strftime(MONTH_FORMAT),
         'model': model_counts.most_common(1)[0][0] if model_counts else UNKNOWN_MODEL,
         'models': sorted(session['models']),
         'cost': round(sum(cost_by_model.values()), 4),
@@ -551,39 +570,25 @@ def session_source(session: dict[str, Any]) -> str:
     return SUBAGENT_ONLY_SOURCE if session['has_subagent_data'] else MAIN_ONLY_SOURCE
 
 
-def analyze_claude_sessions(sessions):
-    """Produce aggregate analysis from Claude session data."""
+def analyze_claude_sessions(sessions: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not sessions:
         return None
 
     total = len(sessions)
-    total_cost = sum(s['cost'] for s in sessions)
-    total_turns = sum(s['turns'] for s in sessions)
-    total_tools = sum(s['tool_count'] for s in sessions)
+    total_cost = sum(session['cost'] for session in sessions)
+    total_turns = sum(session['turns'] for session in sessions)
+    total_tools = sum(session['tool_count'] for session in sessions)
 
-    dates = [s['date'] for s in sessions]
+    dates = [session['date'] for session in sessions]
     min_date = min(dates)
     max_date = max(dates)
     unique_days = len(set(dates))
 
-    # Tool usage across all sessions
-    all_tools = []
-    for s in sessions:
-        all_tools.extend(s['tool_calls'])
-    tool_counts = dict(Counter(all_tools).most_common(30))
-
-    # Skills used
-    all_skills = []
-    for s in sessions:
-        all_skills.extend(s['skills_used'])
-    skill_counts = dict(Counter(all_skills).most_common(20))
-
-    # Model usage (each session can span multiple models, so count by 'models' list)
-    model_counts = Counter()
-    for s in sessions:
-        for model in s.get('models') or [s['model']]:
-            model_counts[model] += 1
-    model_counts = dict(model_counts.most_common())
+    tool_counts = dict(Counter(tool for session in sessions for tool in session['tool_calls']).most_common(30))
+    skill_counts = dict(Counter(skill for session in sessions for skill in session['skills_used']).most_common(20))
+    model_counts = dict(
+        Counter(model for session in sessions for model in session.get('models') or [session['model']]).most_common()
+    )
 
     cost_by_model: defaultdict[str, float] = defaultdict(float)
     unpriced_models: Counter[str] = Counter()
@@ -595,44 +600,36 @@ def analyze_claude_sessions(sessions):
         model: round(cost, 4) for model, cost in sorted(cost_by_model.items(), key=lambda item: item[1], reverse=True)
     }
 
-    # Data source breakdown (main+subagent / subagent-only / main-only)
-    source_counts = dict(Counter(s.get('source', 'unknown') for s in sessions).most_common())
+    source_counts = dict(Counter(session.get('source', UNKNOWN_SOURCE) for session in sessions).most_common())
 
-    # Per-project breakdown
-    project_counts = Counter(s['project'] for s in sessions if s['project'])
-    project_stats = {}
-    for project, count in project_counts.most_common():
-        project_sessions = [s for s in sessions if s['project'] == project]
-        project_stats[project] = {
+    project_counts = Counter(session['project'] for session in sessions if session['project'])
+    sessions_by_project: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+    for session in sessions:
+        sessions_by_project[session['project']].append(session)
+    project_stats = {
+        project: {
             'sessions': count,
-            'cost': round(sum(s['cost'] for s in project_sessions), 4),
-            'turns': sum(s['turns'] for s in project_sessions),
-            'tools': sum(s['tool_count'] for s in project_sessions),
+            'cost': round(sum(session['cost'] for session in sessions_by_project[project]), 4),
+            'turns': sum(session['turns'] for session in sessions_by_project[project]),
+            'tools': sum(session['tool_count'] for session in sessions_by_project[project]),
         }
+        for project, count in project_counts.most_common()
+    }
 
-    # Hourly distribution
-    hourly = Counter(s['hour'] for s in sessions)
-    hourly_full = {h: hourly.get(h, 0) for h in range(24)}
+    hourly = Counter(session['hour'] for session in sessions)
+    hourly_full = {hour: hourly.get(hour, 0) for hour in range(24)}
 
-    # Day of week
-    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    daily = Counter(s['weekday'] for s in sessions)
-    daily_sorted = {d: daily.get(d, 0) for d in day_order}
+    daily = Counter(session['weekday'] for session in sessions)
+    daily_sorted = {day: daily.get(day, 0) for day in WEEKDAYS}
 
-    # Weekly trend
-    weekly = Counter(s['week'] for s in sessions)
-    weekly_sorted = dict(sorted(weekly.items()))
+    weekly_sorted = dict(sorted(Counter(session['week'] for session in sessions).items()))
+    monthly_sorted = dict(sorted(Counter(session['month'] for session in sessions).items()))
+    daily_sorted_counts = dict(sorted(Counter(dates).items()))
 
-    # Monthly trend
-    monthly = Counter(s['month'] for s in sessions)
-    monthly_sorted = dict(sorted(monthly.items()))
-
-    # Daily session counts
-    daily_counts = Counter(dates)
-    daily_sorted_counts = dict(sorted(daily_counts.items()))
-
-    # Sessions with durations
-    durations = [s['duration_minutes'] for s in sessions if s['duration_minutes'] is not None and s['duration_minutes'] > 0]
+    durations = [
+        session['duration_minutes'] for session in sessions
+        if session['duration_minutes'] is not None and session['duration_minutes'] > 0
+    ]
     duration_stats = None
     if durations:
         durations_sorted = sorted(durations)
@@ -643,32 +640,21 @@ def analyze_claude_sessions(sessions):
             'total_hours': round(sum(durations) / 60, 1),
         }
 
-    # Cost by week
-    cost_by_week = defaultdict(float)
-    for s in sessions:
-        cost_by_week[s['week']] += s['cost']
-    cost_by_week = {k: round(v, 4) for k, v in sorted(cost_by_week.items())}
+    cost_by_week: defaultdict[str, float] = defaultdict(float)
+    for session in sessions:
+        cost_by_week[session['week']] += session['cost']
+    cost_by_week_sorted = {week: round(cost, 4) for week, cost in sorted(cost_by_week.items())}
 
-    # Per-project hourly patterns
-    project_hours = {}
-    for project in list(project_counts.keys())[:10]:
-        project_sessions = [s for s in sessions if s['project'] == project]
-        project_hours[project] = dict(Counter(s['hour'] for s in project_sessions))
-
-    # Title/theme extraction from session titles
-    title_words = Counter()
-    stop_words = {
-        'the', 'a', 'an', 'and', 'or', 'to', 'in', 'for', 'of', 'on',
-        'with', 'is', 'it', 'from', 'by', 'at', 'as', 'this', 'that',
-        'me', 'my', 'i', 'can', 'you', 'how', 'what', 'we', 'do', 'not',
-        'all', 'but', 'so', 'if', 'be', 'are', 'was', 'has', 'have',
+    project_hours = {
+        project: dict(Counter(session['hour'] for session in sessions_by_project[project]))
+        for project in list(project_counts)[:10]
     }
-    for s in sessions:
-        title = s.get('title', '')
-        if title:
-            for word in re.split(r'[\s/\\.,;:!?()\[\]{}"\'-]+', title.lower()):
-                if len(word) > 2 and word not in stop_words:
-                    title_words[word] += 1
+
+    title_words: Counter[str] = Counter()
+    for session in sessions:
+        for word in TITLE_WORD_SEPARATORS.split((session.get('title') or '').lower()):
+            if len(word) > 2 and word not in TITLE_STOP_WORDS:
+                title_words[word] += 1
     top_session_words = dict(title_words.most_common(30))
 
     return {
@@ -697,62 +683,45 @@ def analyze_claude_sessions(sessions):
         'by_day_of_week': daily_sorted,
         'by_week': weekly_sorted,
         'by_month': monthly_sorted,
-        'cost_by_week': cost_by_week,
+        'cost_by_week': cost_by_week_sorted,
         'daily_counts': daily_sorted_counts,
         'top_session_words': top_session_words,
     }
 
 
-def analyze(all_commits, repos_data):
-    """Produce aggregate analysis from collected commits."""
+def time_bucket(hour: int) -> str:
+    return next((name for start, end, name in TIME_BUCKETS if start <= hour < end), NIGHT_BUCKET)
+
+
+def analyze(all_commits: list[dict[str, Any]], repos_data: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
     if not all_commits:
         return {'error': 'No commits found'}
 
     total = len(all_commits)
-    dates = [c['date'] for c in all_commits]
+    dates = [commit['date'] for commit in all_commits]
     min_date = min(dates)
     max_date = max(dates)
     unique_days = len(set(dates))
-    date_range_days = (datetime.strptime(max_date, '%Y-%m-%d') - datetime.strptime(min_date, '%Y-%m-%d')).days + 1
+    date_range_days = (datetime.strptime(max_date, DATE_FORMAT) - datetime.strptime(min_date, DATE_FORMAT)).days + 1
 
-    repo_totals = {repo: len(commits) for repo, commits in repos_data.items() if commits}
-    repo_totals = dict(sorted(repo_totals.items(), key=lambda x: -x[1]))
+    active_repos = {repo: commits for repo, commits in repos_data.items() if commits}
+    repo_totals = dict(sorted(((repo, len(commits)) for repo, commits in active_repos.items()), key=lambda item: -item[1]))
 
-    weekly = Counter(c['week'] for c in all_commits)
-    weekly_sorted = dict(sorted(weekly.items()))
+    weekly_sorted = dict(sorted(Counter(commit['week'] for commit in all_commits).items()))
+    monthly_sorted = dict(sorted(Counter(commit['month'] for commit in all_commits).items()))
 
-    monthly = Counter(c['month'] for c in all_commits)
-    monthly_sorted = dict(sorted(monthly.items()))
+    hourly = Counter(commit['hour'] for commit in all_commits)
+    hourly_full = {hour: hourly.get(hour, 0) for hour in range(24)}
 
-    hourly = Counter(c['hour'] for c in all_commits)
-    hourly_full = {h: hourly.get(h, 0) for h in range(24)}
+    daily = Counter(commit['weekday'] for commit in all_commits)
+    daily_sorted = {day: daily.get(day, 0) for day in WEEKDAYS}
 
-    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    daily = Counter(c['weekday'] for c in all_commits)
-    daily_sorted = {d: daily.get(d, 0) for d in day_order}
+    buckets = Counter(time_bucket(commit['hour']) for commit in all_commits)
 
-    def time_bucket(hour):
-        if 5 <= hour < 9:
-            return 'early_morning'
-        if 9 <= hour < 12:
-            return 'morning'
-        if 12 <= hour < 14:
-            return 'lunch'
-        if 14 <= hour < 17:
-            return 'afternoon'
-        if 17 <= hour < 21:
-            return 'evening'
-        return 'night'
+    types = Counter(classify_commit(commit['subject']) for commit in all_commits)
+    types_sorted = dict(sorted(types.items(), key=lambda item: -item[1]))
 
-    buckets = Counter(time_bucket(c['hour']) for c in all_commits)
-
-    types = Counter(classify_commit(c['subject']) for c in all_commits)
-    types_sorted = dict(sorted(types.items(), key=lambda x: -x[1]))
-
-    repo_weekly = {}
-    for repo, commits in repos_data.items():
-        if commits:
-            repo_weekly[repo] = dict(Counter(c['week'] for c in commits))
+    repo_weekly = {repo: dict(Counter(commit['week'] for commit in commits)) for repo, commits in active_repos.items()}
 
     streaks = compute_streaks(dates)
 
@@ -761,29 +730,24 @@ def analyze(all_commits, repos_data):
 
     per_active_day = round(total / unique_days, 1) if unique_days else 0
 
-    weekend = sum(1 for c in all_commits if c['weekday'] in ('Saturday', 'Sunday'))
+    weekend = sum(1 for commit in all_commits if commit['weekday'] in WEEKEND)
     weekday = total - weekend
 
-    repo_hours = {}
-    for repo, commits in repos_data.items():
-        if commits:
-            repo_hours[repo] = dict(Counter(c['hour'] for c in commits))
+    repo_hours = {repo: dict(Counter(commit['hour'] for commit in commits)) for repo, commits in active_repos.items()}
 
-    stop_words = {'the', 'a', 'an', 'and', 'or', 'to', 'in', 'for', 'of', 'on', 'with', 'is', 'it', 'from', 'by', 'at', 'as', 'this', 'that'}
-    words = Counter()
-    for c in all_commits:
-        for word in c['subject'].lower().split():
-            clean = word.strip('()[]{}.,;:!?"\'-')
-            if len(clean) > 2 and clean not in stop_words:
+    words: Counter[str] = Counter()
+    for commit in all_commits:
+        for word in commit['subject'].lower().split():
+            clean = word.strip(SUBJECT_PUNCTUATION)
+            if len(clean) > 2 and clean not in SUBJECT_STOP_WORDS:
                 words[clean] += 1
     top_words = dict(words.most_common(30))
 
-    busiest_day = max(daily_counts.items(), key=lambda x: x[1])
+    busiest_day = max(daily_counts.items(), key=lambda item: item[1])
 
-    repo_types = {}
-    for repo, commits in repos_data.items():
-        if commits:
-            repo_types[repo] = dict(Counter(classify_commit(c['subject']) for c in commits))
+    repo_types = {
+        repo: dict(Counter(classify_commit(commit['subject']) for commit in commits)) for repo, commits in active_repos.items()
+    }
 
     return {
         'summary': {
@@ -815,26 +779,24 @@ def analyze(all_commits, repos_data):
     }
 
 
-def to_csv(analysis):
-    """Convert the repo-weekly breakdown to CSV."""
-    repo_weekly = analysis.get('by_repo_week', {})
-    all_weeks = sorted(set(w for rw in repo_weekly.values() for w in rw))
-    repos = sorted(analysis['by_repo'].keys(), key=lambda r: -analysis['by_repo'][r])
+def to_csv(analysis: dict[str, Any]) -> str:
+    repo_weekly: dict[str, dict[str, int]] = analysis.get('by_repo_week', {})
+    repo_totals: dict[str, int] = analysis['by_repo']
+    all_weeks = sorted({week for weeks in repo_weekly.values() for week in weeks})
+    repos = sorted(repo_totals, key=lambda repo: -repo_totals[repo])
 
     lines = ['Week,' + ','.join(repos) + ',Total']
     for week in all_weeks:
-        vals = [str(repo_weekly.get(r, {}).get(week, 0)) for r in repos]
-        total = sum(int(v) for v in vals)
+        counts = [repo_weekly.get(repo, {}).get(week, 0) for repo in repos]
         short = week.split('-')[1]
-        lines.append(f'{short},' + ','.join(vals) + f',{total}')
+        lines.append(f'{short},' + ','.join(str(count) for count in counts) + f',{sum(counts)}')
 
-    totals = [str(analysis['by_repo'][r]) for r in repos]
-    grand = sum(analysis['by_repo'].values())
-    lines.append('Total,' + ','.join(totals) + f',{grand}')
+    totals = [str(repo_totals[repo]) for repo in repos]
+    lines.append('Total,' + ','.join(totals) + f',{sum(repo_totals.values())}')
     return '\n'.join(lines)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='Collect developer profile data from git repos and Claude sessions',
         epilog=f'Claude costs are estimated from the list prices at {PRICING_SOURCE}',
@@ -842,7 +804,7 @@ def main():
     parser.add_argument('base_dir', help='Base directory containing git repos')
     parser.add_argument('--author', help='Git author name (auto-detected if omitted)')
     parser.add_argument('--since', help='Start date (ISO format, default: 3 months ago)')
-    parser.add_argument('--format', choices=['json', 'csv'], default='json', help='Output format')
+    parser.add_argument('--format', choices=[JSON_FORMAT, CSV_FORMAT], default=JSON_FORMAT, help='Output format')
     parser.add_argument(
         '--config-dir',
         action='append',
@@ -852,48 +814,40 @@ def main():
     )
     args = parser.parse_args()
 
-    if not args.since:
-        three_months_ago = datetime.now() - timedelta(days=90)
-        args.since = three_months_ago.strftime('%Y-%m-%d')
+    since = args.since or (datetime.now() - timedelta(days=DEFAULT_WINDOW_DAYS)).strftime(DATE_FORMAT)
 
     repos = find_repos(args.base_dir)
     if not repos:
         print(json.dumps({'error': f'No git repos found in {args.base_dir}'}))
         sys.exit(1)
 
-    if not args.author:
-        args.author = detect_author(repos)
-        if not args.author:
-            print(json.dumps({'error': 'Could not detect git author. Use --author.'}))
-            sys.exit(1)
+    author = args.author or detect_author(repos)
+    if not author:
+        print(json.dumps({'error': 'Could not detect git author. Use --author.'}))
+        sys.exit(1)
 
-    repos_data = {}
-    repos_context = {}
-    all_commits = []
+    repos_data: dict[str, list[dict[str, Any]]] = {}
+    repos_context: dict[str, dict[str, Any]] = {}
+    all_commits: list[dict[str, Any]] = []
     for repo_path in repos:
         repo_name = os.path.basename(repo_path)
-        commits = collect_commits(repo_path, args.author, args.since)
+        commits = collect_commits(repo_path, author, since)
         if commits:
             repos_data[repo_name] = commits
             all_commits.extend(commits)
             repos_context[repo_name] = collect_repo_context(repo_path)
 
-    result = {}
-
-    # Git analysis
     git_analysis = analyze(all_commits, repos_data)
     git_analysis['repo_context'] = repos_context
-    result['git'] = git_analysis
+    result: dict[str, Any] = {'git': git_analysis}
 
-    # Claude session analysis
     profiles = discover_profiles(args.config_dir or ())
-    claude_sessions = collect_claude_sessions(args.since, profiles)
-    claude_analysis = analyze_claude_sessions(claude_sessions)
+    claude_analysis = analyze_claude_sessions(collect_claude_sessions(since, profiles))
     if claude_analysis:
         claude_analysis['profiles_scanned'] = [str(profile) for profile in profiles]
         result['claude'] = claude_analysis
 
-    if args.format == 'csv':
+    if args.format == CSV_FORMAT:
         print(to_csv(git_analysis))
     else:
         print(json.dumps(result, indent=2))
