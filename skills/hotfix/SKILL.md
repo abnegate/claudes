@@ -105,7 +105,7 @@ After the fix and regression test are written, launch **two agents in parallel**
 - Report pass/fail status for every suite
 - If any test fails, report the failure details (there are no "pre-existing" failures; all must pass)
 
-**Agent B: Code-griller review**
+**Agent B: Review the fix** (`reviewer`)
 - Use **reviewer** for focused review of the fix:
   - Is the fix correct?
   - Could it cause other issues?
