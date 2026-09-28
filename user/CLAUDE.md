@@ -79,10 +79,6 @@
 - Never serialize work just because agents touch the same file. Worktree isolation means every agent gets its own repo copy. The consolidator merges intelligently at the end.
 - Default to parallel. If in doubt whether tasks are independent, they probably are — launch them in worktrees and let the consolidator sort it out.
 
-## Claude Code Plugin Development
-
-- When creating slash commands or skills for Claude Code plugins, always use the `commands/` directory format (not `skills/`). Slash commands must be placed in `.claude/commands/` to be visible.
-
 ## UI Changes
 
 - After any UI change, take a screenshot and analyse it to verify the result matches intent. Don't report a UI task as complete without visual confirmation. If screenshots aren't available, say so explicitly rather than assuming it looks right.
