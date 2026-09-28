@@ -132,27 +132,27 @@ def collect_repo_context(repo_path):
     return context
 
 
-def classify_commit(subject):
-    """Classify a commit message by conventional commit type."""
-    lower = subject.lower().strip()
-    prefixes = [
-        'feat', 'fix', 'refactor', 'chore', 'docs', 'test',
-        'style', 'perf', 'ci', 'build', 'revert', 'wip'
-    ]
-    for prefix in prefixes:
-        if lower.startswith(prefix + ':') or lower.startswith(prefix + '('):
-            return prefix
-    if lower.startswith('merge'):
+CONVENTIONAL_SUBJECT = r'^(?P<type>[a-z]+)(?:\((?P<scope>[^()\r\n]+)\))?(?P<breaking>!)?: '
+LEGACY_SUBJECT = r'^\((?P<type>[a-z]+)\): '
+COMMIT_TYPES = ('feat', 'fix', 'refactor', 'chore', 'docs', 'test', 'style', 'perf', 'ci', 'build', 'revert', 'wip')
+
+
+def classify_commit(subject: str) -> str:
+    lowered = subject.lower().strip()
+    match = re.match(CONVENTIONAL_SUBJECT, lowered) or re.match(LEGACY_SUBJECT, lowered)
+    if match and match['type'] in COMMIT_TYPES:
+        return match['type']
+    if lowered.startswith('merge'):
         return 'merge'
-    if lower.startswith('add') or lower.startswith('implement') or lower.startswith('create'):
+    if lowered.startswith(('add', 'implement', 'create')):
         return 'feat'
-    if lower.startswith('fix') or lower.startswith('bug') or lower.startswith('patch'):
+    if lowered.startswith(('fix', 'bug', 'patch')):
         return 'fix'
-    if lower.startswith('update') or lower.startswith('improve') or lower.startswith('enhance'):
+    if lowered.startswith(('update', 'improve', 'enhance')):
         return 'improvement'
-    if lower.startswith('remove') or lower.startswith('delete') or lower.startswith('clean'):
+    if lowered.startswith(('remove', 'delete', 'clean')):
         return 'cleanup'
-    if lower.startswith('refactor') or lower.startswith('restructure') or lower.startswith('reorgani'):
+    if lowered.startswith(('refactor', 'restructure', 'reorgani')):
         return 'refactor'
     return 'other'
 
