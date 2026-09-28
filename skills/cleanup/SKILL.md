@@ -16,11 +16,11 @@ Systematic cleanup of dead code, unused imports, and technical debt.
 
 ## Phase 0: Baseline (Parallel)
 
-Detect the stack from the first manifest in this table's row order that exists at the repository root. `<pm>` is the package manager chosen by lockfile, as in `/build`. Prefer the project's own scripts or Makefile targets when they exist. When tests run in Docker Compose (Appwrite), run the same command inside the service, for example `docker compose exec <service> vendor/bin/phpunit --filter Name`.
+Detect the stack from the first manifest in this table's row order that exists at the repository root. `<pm>` is the package manager chosen by lockfile, as in the `skills:build` skill. Prefer the project's own scripts or Makefile targets when they exist. When tests run in Docker Compose (Appwrite), run the same command inside the service, for example `docker compose exec <service> vendor/bin/phpunit --filter Name`.
 
 | Manifest | Stack | Test all | Test one | Build | Lint | Format | Static analysis | Coverage |
 |---|---|---|---|---|---|---|---|---|
-| build.gradle.kts / build.gradle | Gradle | `./gradlew test` | `./gradlew test --tests "*Name*"` | `./gradlew build` | `./gradlew ktlintCheck` | `./gradlew ktlintFormat` | `./gradlew detekt` | `./gradlew koverReport` |
+| build.gradle.kts / build.gradle | Gradle | `./gradlew test` | `./gradlew test --tests "*Name*"` | `./gradlew build` | `./gradlew spotlessCheck` (or `ktlintCheck`) | `./gradlew spotlessApply` (or `ktlintFormat`) | `./gradlew detekt` | `./gradlew koverReport` |
 | pom.xml | Maven | `mvn test` | `mvn test -Dtest=Name` | `mvn package` | configured plugin | `mvn spotless:apply` if configured | — | `mvn jacoco:report` if configured |
 | composer.json | PHP | `composer test` | `composer test -- --filter Name` | `composer install` | `composer lint` | `composer format` | `composer check` (PHPStan) | `vendor/bin/phpunit --coverage-text` (PCOV/Xdebug) |
 | package.json | Node | `<pm> test` | `<pm> test -- -t "Name"` | `<pm> run build` | `<pm> run lint` | `<pm> run format` / `npx prettier --write .` | `<pm> exec tsc --noEmit` | `<pm> test -- --coverage` |
