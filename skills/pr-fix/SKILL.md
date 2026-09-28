@@ -31,6 +31,29 @@ Example: `/pr-fix https://github.com/owner/repo/pull/123 comments=true checks=fa
 gh pr checkout <pr-ref>
 ```
 
+When checks=true and `gh pr checks <pr-ref>` lists pending checks, follow **Wait for CI** before step 2.
+
+#### Wait for CI
+
+```bash
+: "${PR_URL:?set PR_URL to the pull request URL}" "${REPO:?set REPO to the absolute path of the local checkout}"
+HEAD_SHA=$(git -C "$REPO" rev-parse HEAD) || exit 2
+for _ in $(seq 1 30); do
+  PR_HEAD=$(gh pr view "$PR_URL" --json headRefOid --jq .headRefOid)
+  CHECK_COUNT=$(gh pr checks "$PR_URL" --json name --jq length 2>/dev/null || echo 0)
+  if [ "$PR_HEAD" = "$HEAD_SHA" ] && [ "$CHECK_COUNT" -gt 0 ]; then
+    exec gh pr checks "$PR_URL" --watch --fail-fast --interval 30
+  fi
+  sleep 10
+done
+echo "No CI checks registered for $HEAD_SHA after 5 minutes"
+exit 3
+```
+
+Run the block in one Bash call with `run_in_background: true`, with the PR URL and the checkout's absolute path assigned on the line before it, for example `PR_URL=https://github.com/owner/repo/pull/123 REPO=/Users/me/Local/repo`. Both values are required because the Bash tool keeps no variables between calls and a subagent's cwd resets. `REPO` is the absolute path of the checkout from step 1; when the PR reference is a number, `gh pr view <pr-ref> --json url -q .url` prints the URL.
+
+Exit codes: 0 means all checks passed; 1 means a check failed (`--fail-fast`); 3 means no checks registered within 5 minutes (the repo may have no CI, so continue with review comments only); any other non-zero means the command itself failed (unset `PR_URL` or `REPO`, a path that is not a checkout, a `gh` error): fix it and run again. Monitor is the alternative when per-check events are wanted.
+
 ### 2. Gather PR Context (Parallel)
 
 Launch these agents in parallel to collect all PR information simultaneously:
@@ -75,7 +98,9 @@ Each agent:
 
 #### 3b. Parallel Fixes (Consolidation Pattern)
 
-Partition diagnosed failures into groups by root cause. Use the **consolidation pattern** — launch each fix group as a parallel worktree-isolated agent (`isolation: "worktree"`). Agents can freely edit overlapping files; the consolidator handles merges.
+Partition diagnosed failures into groups by root cause. Use the **consolidation pattern** — launch each fix group as a parallel agent in its own worktree. Agents can freely edit overlapping files; the consolidator handles merges.
+
+Before launching them, record BASE and follow the consolidation skill's Worktree BASE protocol for every worktree agent. BASE is the PR head (`git rev-parse HEAD` in the checkout from step 1).
 
 **Per worktree agent:**
 1. Apply the proposed fix from the analysis
@@ -90,7 +115,7 @@ Partition diagnosed failures into groups by root cause. Use the **consolidation 
 After all fix agents complete, delegate to the `skills:commit` command with a descriptive message, then push:
 
 ```
-Skill(skill="skills:commit", args="fix: <description of what was fixed>")
+Skill(skill="skills:commit", args="fix(<scope>): <description of what was fixed>")
 ```
 
 ```bash
@@ -99,12 +124,7 @@ git push
 
 #### 3d. Monitor Checks
 
-```bash
-sleep 10
-gh pr checks <pr-ref> --watch
-```
-
-If checks still fail, repeat from 3a. Escalate to the user only if the same failure persists after a fix attempt.
+Follow **Wait for CI** (step 1) for the pushed commit. If checks still fail, repeat from 3a. Escalate to the user only if the same failure persists after a fix attempt.
 
 ### 4. Address PR Comments (when comments=true)
 
@@ -119,7 +139,9 @@ Group review comments by file. Launch a separate agent per file (or per independ
 
 #### 4b. Parallel Comment Fixes (Consolidation Pattern)
 
-Launch each comment group as a parallel worktree-isolated agent (`isolation: "worktree"`). Agents can freely edit overlapping files; the consolidator handles merges.
+Launch each comment group as a parallel agent in its own worktree. Agents can freely edit overlapping files; the consolidator handles merges.
+
+Before launching them, record BASE and follow the consolidation skill's Worktree BASE protocol for every worktree agent. BASE is the PR head (`git rev-parse HEAD` in the checkout from step 1).
 
 **Per worktree agent:**
 1. Apply the requested change (or closest reasonable interpretation)
@@ -134,7 +156,7 @@ Launch each comment group as a parallel worktree-isolated agent (`isolation: "wo
 Delegate to the `skills:commit` command, then push:
 
 ```
-Skill(skill="skills:commit", args="fix: address review comments")
+Skill(skill="skills:commit", args="fix(<scope>): address review comments")
 ```
 
 ```bash
@@ -143,12 +165,7 @@ git push
 
 #### 4d. Monitor Checks
 
-```bash
-sleep 10
-gh pr checks <pr-ref> --watch
-```
-
-If fixing comments introduces new check failures, loop back to step 3.
+Follow **Wait for CI** (step 1) for the pushed commit. If fixing comments introduces new check failures, loop back to step 3.
 
 ### 5. Iterate If Needed
 
@@ -164,7 +181,7 @@ Continue iterating until:
   - **tests**: Check test output, fix code or test
   - **build**: Check compilation errors
 - When addressing comments, respect the reviewer's intent — don't just make superficial changes
-- After each fix, commit with: `fix: <description of what was fixed>`
+- After each fix, commit with: `fix(<scope>): <description of what was fixed>`
 
 ## Test Failure Policy
 
