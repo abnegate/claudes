@@ -138,7 +138,7 @@ Skill(skill="skills:pr", args="fix(<scope>): <description>")
 The `skills:pr` command will push the branch and open the PR. After it returns, update the PR body with hotfix-specific context (issue / root cause / fix / rollback) using `gh pr edit`:
 
 ```bash
-gh pr edit <pr-number> --body "$(cat <<'EOF'
+gh pr edit <pr-number> --body-file - <<'EOF'
 ## Emergency Hotfix
 
 ### Issue
@@ -158,7 +158,6 @@ gh pr edit <pr-number> --body "$(cat <<'EOF'
 ### Rollback Plan
 [How to rollback if needed]
 EOF
-)"
 ```
 
 ## Phase 5: Deployment Checklist

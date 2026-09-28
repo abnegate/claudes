@@ -76,7 +76,7 @@ git push -u origin $(git branch --show-current)
 Then create the PR:
 
 ```bash
-gh pr create --title "$TITLE" --body "$(cat <<'EOF'
+gh pr create --title '<title>' --body-file - <<'EOF'
 ## Summary
 - Bullet point summary of changes
 
@@ -91,7 +91,6 @@ gh pr create --title "$TITLE" --body "$(cat <<'EOF'
 ## Screenshots (if UI changes)
 N/A
 EOF
-)"
 ```
 
 ## PR Title Format
