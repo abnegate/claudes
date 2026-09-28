@@ -32,7 +32,7 @@ Launch THREE parallel agents simultaneously to gather all context at once:
 
 **Agent 3 — Check Recent History**:
 - `git log --oneline -20` for recent changes
-- `git log --oneline --all --since="2 weeks ago"` for broader context
+- `git log --oneline --all --since='2 weeks ago'` for broader context
 - Identify if anyone has worked on related areas recently
 - Check for any in-flight branches that might conflict
 
@@ -50,10 +50,12 @@ Move issue to "In Progress" state via Linear MCP.
 ### 0.3 Create Branch
 
 ```bash
-ISSUE_ID="$ARGUMENTS"
-BRANCH_SLUG=$(echo "[title from Linear]" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-40)
+ISSUE_ID='$ARGUMENTS'
+BRANCH_SLUG=$(printf '%s' '<title from Linear>' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-40)
 git checkout -b "${ISSUE_ID}-${BRANCH_SLUG}"
 ```
+
+Paste the Linear title between the single quotes, writing each `'` in it as `'\''`.
 
 ### 0.4 Clarify If Needed
 
@@ -88,10 +90,9 @@ Title the PR `<type>(<scope>): <Linear title>`. The type is `fix` when the issue
 Using the PR content prepared by Agent 2 (adjusted if fixes were needed):
 
 ```bash
-ISSUE_ID="$ARGUMENTS"
-gh pr create --title "<type>(<scope>): <Linear title>" --body "$(cat <<EOF
+gh pr create --title '<type>(<scope>): <Linear title>' --body-file - <<'EOF'
 ## Summary
-Implements ${ISSUE_ID}
+Implements $ARGUMENTS
 
 ## Changes
 - [list changes]
@@ -101,10 +102,11 @@ Implements ${ISSUE_ID}
 - [x] All tests pass
 - [ ] Manual testing
 
-Linear: ${ISSUE_ID}
+Linear: $ARGUMENTS
 EOF
-)"
 ```
+
+Keep the heredoc delimiter quoted (`'EOF'`), so backticks and `$` in the body reach GitHub unchanged.
 
 ### 2.2 Update Linear Issue
 
