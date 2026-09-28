@@ -181,7 +181,7 @@ How the top-level conductor runs Stage 3 with workstreams:
 
 **Escalation.** Conductors never ask the user. A BLOCKED report goes to the top level, which asks the user and then continues that conductor with `SendMessage`.
 
-**Workstream report.** The conductor's final action is `SubagentHandback({message: <this report>})`; if `SubagentHandback` is not among its tools, it ends its turn with the report as its final message, once no child is running:
+**Workstream report.** The conductor's final action is `SubagentHandback({message: <this report>})`; if `SubagentHandback` is not among its tools, or a call to it fails, it ends its turn with the report as its final message, once no child is running:
 
 ```
 ## Workstream report: <name>

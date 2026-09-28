@@ -42,7 +42,7 @@ Never end your turn while children run: ending the turn does not wait for backgr
 
 ## Workstream report
 
-Your final action is `SubagentHandback({message: <this report>})`; then stop. If `SubagentHandback` is not among your tools, end your turn with the report as your final message, once no child is running. BASE in the report is the SHA you were given.
+Your final action is `SubagentHandback({message: <this report>})`; then stop. If `SubagentHandback` is not among your tools, or a call to it fails, end your turn with the report as your final message, once no child is running. BASE in the report is the SHA you were given.
 
 ```
 ## Workstream report: <name>
