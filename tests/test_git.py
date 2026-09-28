@@ -10,6 +10,10 @@ import tempfile
 import time
 import unittest
 from collections.abc import Mapping
+from datetime import date
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -22,6 +26,7 @@ AUTHOR = 'Tester'
 EMAIL = 'tester@example.com'
 ZONE = 'Pacific/Auckland'
 BRANCH = 'main'
+MIDDAY_IN_ZONE = datetime(2026, 9, 27, 23, tzinfo=timezone.utc)
 CONFIG_DIRECTORY_VARIABLE = 'CLAUDE_CONFIG_DIR'
 TIME_FIELDS = ('date', 'time', 'hour', 'weekday', 'week', 'month')
 YEAR_BOUNDARY_DAYS = ('2026-12-31', '2027-01-01', '2027-01-04')
@@ -45,6 +50,7 @@ class GitTest(unittest.TestCase):
             'GIT_AUTHOR_EMAIL': EMAIL,
             'GIT_COMMITTER_NAME': AUTHOR,
             'GIT_COMMITTER_EMAIL': EMAIL,
+            'GIT_TEST_DATE_NOW': str(int(MIDDAY_IN_ZONE.timestamp())),
         })
         environment.start()
         self.addCleanup(environment.stop)
@@ -121,18 +127,24 @@ class GitTest(unittest.TestCase):
         commits = collect.collect_commits(str(repository), AUTHOR, '2026-09-21')
         self.assertEqual([(commit['subject'], commit['date']) for commit in commits], [('fix: written in the window', '2026-09-22')])
 
+    def cherry_pick(self, repository: Path, branch: str, base: str, commit: str, committed: str) -> None:
+        self.git(repository, 'checkout', '--quiet', '-b', branch, base)
+        self.git(repository, 'cherry-pick', '--allow-empty', commit, environment={'GIT_COMMITTER_DATE': committed})
+        self.git(repository, 'checkout', '--quiet', BRANCH)
+
     def test_clones_and_rebased_copies_count_once(self) -> None:
         alpha = self.repository('alpha')
+        self.commit(alpha, 'chore: start', '2026-09-21T10:00:00')
         self.commit(alpha, 'feat: one', '2026-09-22T10:00:00')
         self.commit(alpha, 'fix: two', '2026-09-23T10:00:00')
-        self.git(alpha, 'checkout', '--quiet', '-b', 'copy', 'HEAD~1')
-        self.git(alpha, 'cherry-pick', '--allow-empty', BRANCH, environment={'GIT_COMMITTER_DATE': '2026-09-24T10:00:00'})
         beta = self.root / 'code' / 'beta'
         self.git(self.root, 'clone', '--quiet', str(alpha), str(beta))
+        self.cherry_pick(alpha, 'rebased-two', 'HEAD~1', BRANCH, '2026-09-24T10:00:00')
+        self.cherry_pick(beta, 'rebased-one', 'HEAD~2', f'{BRANCH}~1', '2026-09-25T10:00:00')
         self.commit(beta, 'docs: three', '2026-09-24T12:00:00')
         git = self.main('--since', '2026-09-01')['git']
-        self.assertEqual(git['summary']['total_commits'], 3)
-        self.assertEqual(git['by_repo'], {'alpha': 2, 'beta': 1})
+        self.assertEqual(git['summary']['total_commits'], 4)
+        self.assertEqual(git['by_repo'], {'alpha': 3, 'beta': 1})
 
     def test_stash_is_not_counted(self) -> None:
         repository = self.repository('zone')
@@ -216,6 +228,48 @@ class GitTest(unittest.TestCase):
         code, output, errors = self.invoke('--since', '2026-09-01', '--format', 'csv')
         self.assertEqual(code, 1, errors)
         self.assertEqual(json.loads(output), {'error': 'No commits found'})
+
+    def test_analysis_summarises_commits(self) -> None:
+        repository = self.repository('zone')
+        self.commit(repository, 'feat(api): add login', '2026-09-26T09:30:00')
+        self.commit(repository, 'fix: login redirect', '2026-09-26T22:00:00')
+        self.commit(repository, 'Merge branch main', '2026-09-28T13:00:00')
+        commits = collect.collect_commits(str(repository), AUTHOR, '2026-09-01')
+        analysis = collect.analyze(commits, {'zone': commits})
+        self.assertEqual(analysis['summary'], {
+            'total_commits': 3,
+            'repos_active': 1,
+            'date_range': '2026-09-26 to 2026-09-28',
+            'date_range_days': 3,
+            'unique_active_days': 2,
+            'commits_per_active_day': 1.5,
+            'commits_per_calendar_day': 1.0,
+            'weekday_commits': 1,
+            'weekend_commits': 2,
+            'weekend_percentage': 66.7,
+            'busiest_day': {'date': '2026-09-26', 'count': 2},
+        })
+        self.assertEqual(analysis['by_type'], {'feat': 1, 'fix': 1, 'merge': 1})
+        self.assertEqual(analysis['by_time_bucket'], {'morning': 1, 'night': 1, 'lunch': 1})
+        self.assertEqual(analysis['by_day_of_week']['Saturday'], 2)
+        self.assertEqual(analysis['by_hour'][22], 1)
+        self.assertEqual(analysis['by_repo_type'], {'zone': {'feat': 1, 'fix': 1, 'merge': 1}})
+        self.assertEqual(analysis['top_words']['login'], 2)
+
+    def test_streaks(self) -> None:
+        today = date.today()
+        days = [(today - timedelta(days=offset)).isoformat() for offset in (0, 0, 1, 2, 5, 6, 7, 8, 20)]
+        self.assertEqual(collect.compute_streaks(days), {
+            'current': 3,
+            'longest': 4,
+            'longest_start': (today - timedelta(days=8)).isoformat(),
+            'longest_end': (today - timedelta(days=5)).isoformat(),
+        })
+        until_yesterday = [(today - timedelta(days=offset)).isoformat() for offset in (1, 2)]
+        self.assertEqual(collect.compute_streaks(until_yesterday)['current'], 2)
+        stale = [(today - timedelta(days=offset)).isoformat() for offset in (3, 4)]
+        self.assertEqual(collect.compute_streaks(stale)['current'], 0)
+        self.assertEqual(collect.compute_streaks([]), {'current': 0, 'longest': 0, 'longest_start': None, 'longest_end': None})
 
 
 if __name__ == '__main__':

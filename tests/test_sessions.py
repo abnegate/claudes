@@ -39,6 +39,7 @@ PLACES = 6
 PROJECTS = 'projects'
 PROJECT = '-p'
 MOVED_PROJECT = '-q'
+OLD_TIMESTAMP = '2019-06-01T10:00:00.000Z'
 WORKING_DIRECTORY = '/Users/me/p'
 USER = 'user'
 ASSISTANT = 'assistant'
@@ -322,6 +323,21 @@ class SessionsTest(unittest.TestCase):
         self.assertEqual(session['assistant_messages'], 2)
         self.assertAlmostEqual(session['cost_by_model'][OPUS], FINAL_FAST_COST, places=PLACES)
 
+    def test_tied_usage_entries_are_priced_from_the_later_one(self) -> None:
+        tied = {'input_tokens': MILLION, 'output_tokens': MILLION}
+        self.write(self.default_profile, PROJECT, 'S70', [
+            self.user('S70', 'u1'),
+            self.assistant('S70', 'a1', usage=tied, message_id='m3'),
+            self.assistant('S70', 'a2', usage={**tied, 'speed': 'fast'}, message_id='m3'),
+        ])
+        self.assertAlmostEqual(self.collect_sessions(self.default_profile)['S70']['cost'], FINAL_FAST_COST, places=PLACES)
+
+    def test_response_without_any_identifier_is_still_priced(self) -> None:
+        anonymous = {**self.assistant('S71', 'a1'), 'uuid': None}
+        anonymous['message']['id'] = None
+        self.write(self.default_profile, PROJECT, 'S71', [self.user('S71', 'u1'), anonymous])
+        self.assertAlmostEqual(self.collect_sessions(self.default_profile)['S71']['cost'], 4.0, places=PLACES)
+
     def test_final_usage_entry_from_a_smaller_copy_wins(self) -> None:
         partial = self.assistant('S20', 'a1', usage=PARTIAL_USAGE, message_id='m2')
         larger = self.write(self.default_profile, PROJECT, 'S20', [
@@ -364,6 +380,12 @@ class SessionsTest(unittest.TestCase):
         self.write(self.default_profile, PROJECT, 'S23', [self.user('S23', 'u2', timestamp=NEW_YORK_EVENING)])
         self.write(self.default_profile, PROJECT, 'S24', [self.user('S24', 'u3', timestamp=NEW_YORK_NIGHT)])
         self.assertEqual(list(self.collect_sessions(self.default_profile, since='2026-09-01')), ['S24'])
+
+    def test_since_with_a_time_and_offset_starts_at_that_local_midnight(self) -> None:
+        self.use_time_zone(AUCKLAND)
+        self.write(self.default_profile, PROJECT, 'S25', [self.user('S25', 'u1', timestamp='2026-08-30T11:30:00.000Z')])
+        self.write(self.default_profile, PROJECT, 'S26', [self.user('S26', 'u2', timestamp='2026-08-31T11:30:00.000Z')])
+        self.assertEqual(list(self.collect_sessions(self.default_profile, since='2026-09-01T00:00:00+13:00')), ['S26'])
 
     def test_timestamps_of_one_instant_agree_in_every_format(self) -> None:
         self.use_time_zone(AUCKLAND)
@@ -479,6 +501,93 @@ class SessionsTest(unittest.TestCase):
         duration = self.analyze(self.default_profile)['duration']
         self.assertEqual(duration['max_minutes'], 60.0)
         self.assertEqual(duration['total_hours'], 1.0)
+
+    def without_session_id(self, entry: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in entry.items() if key != 'sessionId'}
+
+    def test_entries_before_since_are_ignored(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S60', [
+            self.user('S60', 'u1', timestamp=OLD_TIMESTAMP),
+            self.assistant('S60', 'a1', timestamp=OLD_TIMESTAMP),
+            self.user('S60', 'u2'),
+            self.assistant('S60', 'a2'),
+        ])
+        session = self.collect_sessions(self.default_profile)['S60']
+        self.assertEqual((session['user_messages'], session['assistant_messages']), (1, 1))
+        self.assertAlmostEqual(session['cost'], 4.0, places=PLACES)
+
+    def test_same_size_copy_with_other_content_is_ignored(self) -> None:
+        first = self.write(self.default_profile, PROJECT, 'S61', [self.user('S61', 'u1'), self.assistant('S61', 'a1')])
+        second = self.write(self.work_profile, PROJECT, 'S61', [
+            self.user('S61', 'u9', cwd='/Users/me/q'),
+            self.assistant('S61', 'a9'),
+        ])
+        self.assertEqual(first.stat().st_size, second.stat().st_size, 'the fixture copies must be the same size')
+        session = self.collect_sessions(self.default_profile, self.work_profile)['S61']
+        self.assertEqual((session['user_messages'], session['assistant_messages']), (1, 1))
+        self.assertEqual(session['project'], 'p')
+
+    def test_session_source_reflects_where_data_survived(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S62', [self.user('S62', 'u1')])
+        self.write(self.default_profile, f'{PROJECT}/S62/subagents', 'agent-1', [self.user('S62', 'u2')])
+        self.write(self.default_profile, PROJECT, 'S63', [self.user('S63', 'u3')])
+        self.write(self.default_profile, f'{PROJECT}/S64/subagents', 'agent-2', [self.user('S64', 'u4')])
+        sources = {session_id: session['source'] for session_id, session in self.collect_sessions(self.default_profile).items()}
+        self.assertEqual(sources, {'S62': 'main+subagent', 'S63': 'main-only', 'S64': 'subagent-only'})
+        self.assertEqual(self.analyze(self.default_profile)['data_sources'], {'main+subagent': 1, 'main-only': 1, 'subagent-only': 1})
+
+    def test_files_without_session_ids_belong_to_the_session_in_their_path(self) -> None:
+        workflow = f'{PROJECT}/S65/subagents/workflows/wf_1'
+        self.write(self.default_profile, workflow, 'agent-1', [self.without_session_id(self.user('S65', 'u1'))])
+        self.write(self.default_profile, f'{PROJECT}/S65/subagents', 'agent-2', [self.without_session_id(self.user('S65', 'u2'))])
+        self.write(self.default_profile, PROJECT, 'S66', [self.without_session_id(self.user('S66', 'u3'))])
+        sessions = self.collect_sessions(self.default_profile)
+        self.assertEqual(sorted(sessions), ['S65', 'S66'])
+        self.assertEqual(sessions['S65']['user_messages'], 2)
+
+    def test_first_working_directory_names_the_project(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S67', [
+            self.user('S67', 'u1', cwd='/u/Local/first'),
+            self.user('S67', 'u2', cwd='/u/Local/second'),
+        ])
+        self.assertEqual(self.collect_sessions(self.default_profile)['S67']['project'], 'first')
+
+    def test_tool_calls_and_skills_are_counted(self) -> None:
+        response = self.assistant('S68', 'a1')
+        response['message']['content'] = [
+            {'type': 'text', 'text': 'running'},
+            {'type': 'tool_use', 'name': 'Bash', 'input': {'command': 'ls'}},
+            {'type': 'tool_use', 'name': 'Skill', 'input': {'skill': 'skills:commit'}},
+        ]
+        follow_up = self.assistant('S68', 'a2')
+        follow_up['message']['content'] = [{'type': 'tool_use', 'name': 'Bash', 'input': {}}]
+        self.write(self.default_profile, PROJECT, 'S68', [self.user('S68', 'u1'), response, follow_up])
+        session = self.collect_sessions(self.default_profile)['S68']
+        self.assertEqual(session['tool_calls'], ['Bash', 'Skill', 'Bash'])
+        self.assertEqual(session['tool_count'], 3)
+        self.assertEqual(session['skills_used'], ['skills:commit'])
+        analysis = self.analyze(self.default_profile)
+        self.assertEqual(analysis['tools'], {'Bash': 2, 'Skill': 1})
+        self.assertEqual(analysis['skills'], {'skills:commit': 1})
+        self.assertEqual(analysis['summary']['total_tool_calls'], 3)
+
+    def test_malformed_lines_are_skipped(self) -> None:
+        path = self.default_profile / PROJECTS / PROJECT / 'S69.jsonl'
+        path.parent.mkdir(parents=True)
+        without_timestamp = {key: value for key, value in self.user('S69', 'u4').items() if key != 'timestamp'}
+        lines = [
+            json.dumps(self.user('S69', 'u1'), separators=(',', ':')).encode(),
+            json.dumps(self.assistant('S69', 'a1')).encode(),
+            b'[]',
+            json.dumps([self.user('S69', 'u2')]).encode(),
+            json.dumps(self.user('S69', 'u3', 'caf\u00e9'), ensure_ascii=False).encode().replace('caf\u00e9'.encode(), b'caf\xff'),
+            json.dumps(without_timestamp).encode(),
+            json.dumps(self.user('S69', 'u5', timestamp='not a time')).encode(),
+            json.dumps(self.user('S69', 'u6'))[:60].encode(),
+        ]
+        path.write_bytes(b'\n'.join(lines))
+        session = self.collect_sessions(self.default_profile)['S69']
+        self.assertEqual((session['user_messages'], session['assistant_messages']), (1, 1))
 
     def test_session_keeps_existing_keys(self) -> None:
         self.write(self.default_profile, PROJECT, 'S14', [self.user('S14', 'u1'), self.assistant('S14', 'a1')])
