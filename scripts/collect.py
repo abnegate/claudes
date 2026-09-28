@@ -43,6 +43,7 @@ WEEKDAYS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 
 WEEKEND = ('Saturday', 'Sunday')
 TIME_BUCKETS = ((5, 9, 'early_morning'), (9, 12, 'morning'), (12, 14, 'lunch'), (14, 17, 'afternoon'), (17, 21, 'evening'))
 NIGHT_BUCKET = 'night'
+BUSIEST_PROJECTS = 10
 
 GIT_DIRECTORY = '.git'
 COMMIT_LOG_FORMAT = '%H%x00%aI%x00%ae%x00%s'
@@ -693,7 +694,7 @@ def analyze_claude_sessions(sessions: list[dict[str, Any]]) -> dict[str, Any] | 
 
     project_hours = {
         project: dict(Counter(session['hour'] for session in sessions_by_project[project]))
-        for project in list(project_counts)[:10]
+        for project, _ in project_counts.most_common(BUSIEST_PROJECTS)
     }
 
     title_words: Counter[str] = Counter()

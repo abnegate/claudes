@@ -124,7 +124,7 @@ If the user asks about gaps in the timeline, explain this cleanup behavior. Don'
 - Cross-reference with git `by_repo` — which repos get the most AI assistance relative to their commit volume? A repo with many commits but few Claude sessions is "manual" work; one with few commits but many sessions is "AI-assisted" or exploratory.
 
 #### By project hour (`by_project_hour`)
-- Do different projects get Claude help at different times?
+- Do different projects get Claude help at different times? Covers the 10 projects with the most sessions.
 
 #### Hourly / daily / weekly patterns (`by_hour`, `by_day_of_week`, `by_week`)
 - Compare with git patterns. Do Claude sessions happen at the same hours as commits, or different?

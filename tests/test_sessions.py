@@ -83,13 +83,20 @@ class SessionsTest(unittest.TestCase):
         self.addCleanup(environment.stop)
         time.tzset()
 
-    def user(self, session_id: str, uuid: str, content: str = 'go', timestamp: str = TIMESTAMP) -> dict[str, Any]:
+    def user(
+        self,
+        session_id: str,
+        uuid: str,
+        content: str = 'go',
+        timestamp: str = TIMESTAMP,
+        cwd: str = WORKING_DIRECTORY,
+    ) -> dict[str, Any]:
         return {
             'type': USER,
             'uuid': uuid,
             'sessionId': session_id,
             'timestamp': timestamp,
-            'cwd': WORKING_DIRECTORY,
+            'cwd': cwd,
             'message': {'role': USER, 'content': content},
         }
 
@@ -385,6 +392,20 @@ class SessionsTest(unittest.TestCase):
         analysis = self.analyze(self.default_profile)
         self.assertEqual(analysis['by_week'], ISO_WEEKS)
         self.assertEqual(list(analysis['cost_by_week']), list(ISO_WEEKS))
+
+    def test_project_hours_cover_the_busiest_projects(self) -> None:
+        sessions_per_project = {'p00': 1, **{f'p{number:02d}': 2 for number in range(1, 10)}, 'p10': 3}
+        minute = 0
+        for project, count in sessions_per_project.items():
+            for _ in range(count):
+                session_id = f'S-{project}-{minute}'
+                timestamp = f'2026-09-01T10:{minute:02d}:00.000Z'
+                self.write(self.default_profile, PROJECT, session_id, [
+                    self.user(session_id, f'u{minute}', timestamp=timestamp, cwd=f'/u/Local/{project}'),
+                ])
+                minute += 1
+        busiest = sorted(project for project in sessions_per_project if project != 'p00')
+        self.assertEqual(sorted(self.analyze(self.default_profile)['by_project_hour']), busiest)
 
     def test_session_keeps_existing_keys(self) -> None:
         self.write(self.default_profile, PROJECT, 'S14', [self.user('S14', 'u1'), self.assistant('S14', 'a1')])
