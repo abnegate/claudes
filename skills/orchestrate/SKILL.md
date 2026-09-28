@@ -117,21 +117,31 @@ CI needs time to start and report results. Wait for the checks on the pushed hea
 ```bash
 : "${PR_URL:?set PR_URL to the pull request URL}" "${REPO:?set REPO to the absolute path of the local checkout}"
 HEAD_SHA=$(git -C "$REPO" rev-parse HEAD) || exit 2
+PREVIOUS_COUNT=0
 for _ in $(seq 1 30); do
   PR_HEAD=$(gh pr view "$PR_URL" --json headRefOid --jq .headRefOid)
-  CHECK_COUNT=$(gh pr checks "$PR_URL" --json name --jq length 2>/dev/null || echo 0)
-  if [ "$PR_HEAD" = "$HEAD_SHA" ] && [ "$CHECK_COUNT" -gt 0 ]; then
-    exec gh pr checks "$PR_URL" --watch --fail-fast --interval 30
+  CHECK_COUNT=0
+  if [ "$PR_HEAD" = "$HEAD_SHA" ]; then
+    CHECK_COUNT=$(gh pr checks "$PR_URL" --json name --jq length 2>/dev/null || echo 0)
   fi
+  if [ "$CHECK_COUNT" -gt 0 ] && [ "$CHECK_COUNT" = "$PREVIOUS_COUNT" ]; then break; fi
+  PREVIOUS_COUNT=$CHECK_COUNT
   sleep 10
 done
+if [ "$CHECK_COUNT" -gt 0 ]; then
+  exec gh pr checks "$PR_URL" --watch --fail-fast --interval 30
+fi
+if [ "$PR_HEAD" != "$HEAD_SHA" ]; then
+  echo "PR head ${PR_HEAD:-unknown} never matched local HEAD $HEAD_SHA"
+  exit 4
+fi
 echo "No CI checks registered for $HEAD_SHA after 5 minutes"
 exit 3
 ```
 
 Run the block in one Bash call with `run_in_background: true`, with the PR URL and the checkout's absolute path assigned on the line before it, for example `PR_URL=https://github.com/owner/repo/pull/123 REPO=/Users/me/Local/repo`. Both values are required because the Bash tool keeps no variables between calls and a subagent's cwd resets.
 
-Exit codes: 0 means all checks passed; 1 means a check failed (`--fail-fast`); 3 means no checks registered within 5 minutes (the repo may have no CI, so continue with review comments only); any other non-zero means the command itself failed (unset `PR_URL` or `REPO`, a path that is not a checkout, a `gh` error): fix it and run again. Monitor is the alternative when per-check events are wanted.
+Exit codes: 0 means all checks passed; 1 means a check failed (`--fail-fast`) or `gh` failed during the watch; 3 means no checks registered within 5 minutes (the repo may have no CI); 4 means the PR head never matched the local HEAD: push, or fix the `gh pr view` error it printed, and run again; any other non-zero means the block could not start (unset `PR_URL` or `REPO`, or a path that is not a checkout): fix it and run again. Monitor is the alternative when per-check events are wanted.
 
 Do NOT skip this wait - running pr-fix immediately races CI and sees no failures to fix.
 
@@ -145,7 +155,7 @@ Invoke the `skills:pr-fix` command with the captured PR URL and both flags enabl
 Skill(skill="skills:pr-fix", args="$PR_URL checks=true comments=true")
 ```
 
-This will iterate on failing checks and address any review comments already posted.
+If Step 7 exited 3 (no CI), pass `checks=false comments=true` instead. This will iterate on failing checks and address any review comments already posted.
 
 ## Step 9: Final Report
 
