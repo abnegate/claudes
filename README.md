@@ -15,19 +15,28 @@ Install via the built-in plugin marketplace:
 
 Slash commands are namespaced under `skills:`, so they're invoked as `/skills:commit`, `/skills:pr`, etc.
 
-### Option 2: Symlink (local development)
+### Option 2: Local development
 
-Clone the repo and symlink into your Claude config — useful when iterating on the contents:
+Clone the repo and load the working tree — useful when iterating on the contents:
 
 ```bash
 git clone git@github.com:abnegate/claudes.git ~/Local/claudes
-
-ln -sf ~/Local/claudes/commands ~/.claude/commands
-ln -sf ~/Local/claudes/skills ~/.claude/skills
-ln -sf ~/Local/claudes/agents ~/.claude/agents
+claude --plugin-dir ~/Local/claudes
 ```
 
-With symlinks, commands are invoked without the namespace prefix (`/commit`, `/pr`, ...).
+`claude --plugin-dir ~/Local/claudes` loads the working tree for one session and overrides the installed `skills@claudes`, so changes can be tried before they are published. Commands keep the `skills:` namespace.
+
+Don't symlink `commands/`, `skills/` or `agents/` into a profile. The plugin already provides them, and `commands/*.md` are symlinks to `skills/*/SKILL.md`, so each workflow would register at least twice.
+
+### Updating
+
+Refresh the marketplace clone once, then update every profile:
+
+1. Refresh the marketplace in the profile that owns the clone, `~/.claude`: `claude plugin marketplace update claudes`, or `env -u CLAUDE_CONFIG_DIR claude plugin marketplace update claudes` from a shell that exports another profile's `CLAUDE_CONFIG_DIR`.
+2. Run `claude plugin update skills@claudes` in each profile. It updates the user-scope install by default; for a project install, add `--scope project` and run it from that project's directory. For a named profile, prefix the command with `CLAUDE_CONFIG_DIR=~/.claude-<profile>`.
+3. Restart running sessions; an update applies on restart.
+
+Profiles copied from `~/.claude` share its marketplace clone: their `known_marketplaces.json` points at `~/.claude/plugins/marketplaces/claudes` instead of a clone inside their own `plugins/marketplaces`. Claude Code reports that as a "corrupted installLocation", so `claude plugin marketplace update` fails in those profiles. `claude plugin update` still works there: it installs from the shared clone and warns that the marketplace was not refreshed.
 
 ## Agents
 
@@ -53,7 +62,7 @@ Specialized agents that form a structured execution cycle. The cycle is conducte
 
 ## Commands
 
-User-invocable slash commands. Type `/<name>` in Claude Code to run them.
+User-invocable slash commands. Run them as `/skills:<name>` in Claude Code, for example `/skills:commit`; the Usage column omits the `skills:` prefix.
 
 ### Git & Workflow
 
@@ -99,7 +108,7 @@ User-invocable slash commands. Type `/<name>` in Claude Code to run them.
 
 ## Skills
 
-Reference guides loaded by Claude on demand. These are not user-invocable — Claude consults them automatically when relevant context appears.
+Reference guides Claude loads automatically when relevant context appears. They can also be invoked directly as `/skills:<name>`.
 
 | Skill | Description |
 |-------|-------------|
@@ -116,19 +125,26 @@ Reference guides loaded by Claude on demand. These are not user-invocable — Cl
 
 ## User Config
 
-The `user/` directory contains personal configuration that gets symlinked to `~/.claude/`:
+The `user/` directory contains personal configuration:
 
 | File | Purpose |
 |------|---------|
-| `user/settings.json` | Symlink to `~/.claude/settings.json` — plugin settings and hooks |
-| `user/CLAUDE.md` | Symlink to `~/.claude/CLAUDE.md` — global instructions for all projects |
+| `user/CLAUDE.md` | Source of truth for the global instructions: each profile's `CLAUDE.md` (`~/.claude/CLAUDE.md`, `~/.claude-<profile>/CLAUDE.md`) is a symlink to it |
+| `user/settings.json` | Symlink pointing at `~/.claude/settings.json`, the default profile's settings (plugins, marketplaces, hooks); other profiles keep their own |
+
+Link a profile's `CLAUDE.md` to the repo:
+
+```bash
+ln -sf ~/Local/claudes/user/CLAUDE.md ~/.claude/CLAUDE.md
+ln -sf ~/Local/claudes/user/CLAUDE.md ~/.claude-work/CLAUDE.md
+```
 
 ## Adding to Projects
 
-To include this collection in a project's git repo, add as a submodule:
+To enable the plugin for everyone working on a repo, install it at project scope from the repo's directory:
 
 ```bash
-git submodule add git@github.com:abnegate/claudes.git .claude/claudes
+claude plugin install skills@claudes --scope project
 ```
 
 Or copy specific commands:
@@ -136,6 +152,22 @@ Or copy specific commands:
 ```bash
 cp ~/Local/claudes/commands/build.md .claude/commands/
 ```
+
+## Development
+
+Validate the plugin and run the tests from the repo root:
+
+```bash
+claude plugin validate --strict .
+claude plugin validate --strict .claude-plugin/plugin.json
+claude plugin validate --strict skills
+claude plugin validate --strict agents
+claude plugin validate commands
+claude --plugin-dir . plugin details skills
+python3 -m unittest discover -s tests -v
+```
+
+`claude plugin validate commands` runs without `--strict` because it always warns that the `commands/` symlinks are not followed. `validate` does not check agent frontmatter keys; `plugin details` loads the working tree and lists every skill and agent it registers.
 
 ## License
 
