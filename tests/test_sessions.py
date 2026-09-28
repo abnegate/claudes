@@ -27,6 +27,9 @@ STALE_MODIFICATION_TIME = datetime(2019, 1, 1).timestamp()
 TIMESTAMP = '2026-09-01T10:00:00.000Z'
 AUCKLAND = 'Pacific/Auckland'
 NEW_YORK = 'America/New_York'
+UTC = 'UTC'
+YEAR_BOUNDARY_DAYS = ('2026-12-31', '2027-01-01', '2027-01-04')
+ISO_WEEKS = {'2026-W53': 2, '2027-W01': 1}
 AUCKLAND_MORNING = '2026-09-01T13:30:00.000Z'
 NEW_YORK_EVENING = '2026-09-01T02:00:00.000Z'
 NEW_YORK_NIGHT = '2026-09-01T05:00:00.000Z'
@@ -133,6 +136,12 @@ class SessionsTest(unittest.TestCase):
         repeated = [session_id for session_id, count in counts.items() if count > 1]
         self.assertEqual(repeated, [], 'a session is reported more than once')
         return {session['id']: session for session in sessions}
+
+    def analyze(self, *profiles: Path) -> dict[str, Any]:
+        analysis = collect.analyze_claude_sessions(collect.collect_claude_sessions(SINCE, list(profiles)))
+        if analysis is None:
+            self.fail('no sessions were analysed')
+        return analysis
 
     def resolved(self, paths: Sequence[Path]) -> list[Path]:
         return [path.resolve() for path in paths]
@@ -345,6 +354,18 @@ class SessionsTest(unittest.TestCase):
         for invalid in (None, 'yesterday', 1e30, [], {}):
             with self.subTest(invalid=invalid):
                 self.assertIsNone(collect.parse_timestamp(invalid))
+
+    def test_weeks_are_keyed_by_iso_year(self) -> None:
+        self.use_time_zone(UTC)
+        for number, day in enumerate(YEAR_BOUNDARY_DAYS):
+            session_id = f'S3{number}'
+            self.write(self.default_profile, PROJECT, session_id, [
+                self.user(session_id, f'u3{number}', timestamp=f'{day}T12:00:00.000Z'),
+                self.assistant(session_id, f'a3{number}', timestamp=f'{day}T12:00:00.000Z'),
+            ])
+        analysis = self.analyze(self.default_profile)
+        self.assertEqual(analysis['by_week'], ISO_WEEKS)
+        self.assertEqual(list(analysis['cost_by_week']), list(ISO_WEEKS))
 
     def test_session_keeps_existing_keys(self) -> None:
         self.write(self.default_profile, PROJECT, 'S14', [self.user('S14', 'u1'), self.assistant('S14', 'a1')])

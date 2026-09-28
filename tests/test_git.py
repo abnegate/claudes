@@ -24,6 +24,8 @@ ZONE = 'Pacific/Auckland'
 BRANCH = 'main'
 CONFIG_DIRECTORY_VARIABLE = 'CLAUDE_CONFIG_DIR'
 TIME_FIELDS = ('date', 'time', 'hour', 'weekday', 'week', 'month')
+YEAR_BOUNDARY_DAYS = ('2026-12-31', '2027-01-01', '2027-01-04')
+ISO_WEEKS = {'2026-W53': 2, '2027-W01': 1}
 
 
 class GitTest(unittest.TestCase):
@@ -168,6 +170,17 @@ class GitTest(unittest.TestCase):
         repository = self.repository('zone')
         self.commit(repository, 'chore: start', '2026-09-22T10:00:00')
         self.assertNotIn('uncommitted', collect.collect_repo_context(str(repository)))
+
+    def test_weeks_are_keyed_by_iso_year(self) -> None:
+        repository = self.repository('zone')
+        for day in YEAR_BOUNDARY_DAYS:
+            self.commit(repository, f'feat: work on {day}', f'{day}T12:00:00')
+        commits = collect.collect_commits(str(repository), AUTHOR, '2026-12-01')
+        analysis = collect.analyze(commits, {'zone': commits})
+        self.assertEqual(analysis['by_week'], ISO_WEEKS)
+        self.assertEqual(analysis['by_repo_week'], {'zone': ISO_WEEKS})
+        rows = collect.to_csv(analysis).splitlines()
+        self.assertEqual(rows, ['Week,zone,Total', '2026-W53,2,2', '2027-W01,1,1', 'Total,3,3'])
 
 
 if __name__ == '__main__':

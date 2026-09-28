@@ -33,7 +33,7 @@ CSV_FORMAT = 'csv'
 DATE_FORMAT = '%Y-%m-%d'
 TIME_FORMAT = '%H:%M'
 WEEKDAY_FORMAT = '%A'
-WEEK_FORMAT = '%Y-W%V'
+WEEK_FORMAT = '%G-W%V'
 MONTH_FORMAT = '%Y-%m'
 MILLISECOND_TIMESTAMPS_FROM = 10_000_000_000
 WEEKDAYS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
@@ -831,8 +831,7 @@ def to_csv(analysis: dict[str, Any]) -> str:
     lines = ['Week,' + ','.join(repos) + ',Total']
     for week in all_weeks:
         counts = [repo_weekly.get(repo, {}).get(week, 0) for repo in repos]
-        short = week.split('-')[1]
-        lines.append(f'{short},' + ','.join(str(count) for count in counts) + f',{sum(counts)}')
+        lines.append(f'{week},' + ','.join(str(count) for count in counts) + f',{sum(counts)}')
 
     totals = [str(repo_totals[repo]) for repo in repos]
     lines.append('Total,' + ','.join(totals) + f',{sum(repo_totals.values())}')

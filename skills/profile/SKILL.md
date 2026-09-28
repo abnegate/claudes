@@ -148,6 +148,6 @@ Lead with 3-5 bold headline insights. The best insights **cross-reference** git 
 
 After the headlines, present two detailed sections (Git Activity, Claude Usage) with tables and plain language analysis. Then a combined "Cross-reference" section that ties the two together.
 
-If the user asks for CSV output, run the script with `--format csv` instead — this outputs the git repo-weekly grid only.
+If the user asks for CSV output, run the script with `--format csv` instead — this outputs the git repo-weekly grid only, one row per ISO week such as `2026-W53`.
 
 Keep it concrete. Reference specific repos, weeks, numbers, and dollar amounts. Avoid filler.
