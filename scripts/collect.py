@@ -848,6 +848,10 @@ def since_date(value: str) -> str:
         raise argparse.ArgumentTypeError(f'expected an ISO date such as 2026-01-31, got {value!r}') from None
 
 
+def config_directory(value: str) -> Path:
+    return Path(value).expanduser()
+
+
 def fail(message: str) -> NoReturn:
     print(json.dumps({ERROR_KEY: message}))
     sys.exit(1)
@@ -869,7 +873,7 @@ def main() -> None:
     parser.add_argument(
         '--config-dir',
         action='append',
-        type=Path,
+        type=config_directory,
         metavar='PATH',
         help='Claude config directory to scan; repeatable (default: ~/.claude, every ~/.claude-* and $CLAUDE_CONFIG_DIR)',
     )
@@ -884,6 +888,12 @@ def main() -> None:
     author = args.author or detect_author(repos)
     if not author:
         fail('Could not detect git author. Use --author.')
+
+    config_directories = args.config_dir or ()
+    for directory in config_directories:
+        if not (directory / PROJECTS_DIRECTORY).is_dir():
+            print(f'Skipping --config-dir {directory}: it has no {PROJECTS_DIRECTORY}/ directory', file=sys.stderr)
+    profiles = discover_profiles(config_directories)
 
     repos_data: dict[str, list[dict[str, Any]]] = {}
     repos_context: dict[str, dict[str, Any]] = {}
@@ -904,11 +914,8 @@ def main() -> None:
     git_analysis['repo_context'] = repos_context
     result: dict[str, Any] = {'git': git_analysis}
 
-    profiles = discover_profiles(args.config_dir or ())
-    claude_analysis = analyze_claude_sessions(collect_claude_sessions(since, profiles))
-    if claude_analysis:
-        claude_analysis['profiles_scanned'] = [str(profile) for profile in profiles]
-        result['claude'] = claude_analysis
+    claude_analysis = analyze_claude_sessions(collect_claude_sessions(since, profiles)) or {}
+    result['claude'] = {**claude_analysis, 'profiles_scanned': [str(profile) for profile in profiles]}
 
     if args.format == CSV_FORMAT:
         if ERROR_KEY in git_analysis:

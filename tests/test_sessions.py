@@ -143,6 +143,25 @@ class SessionsTest(unittest.TestCase):
             self.fail('no sessions were analysed')
         return analysis
 
+    def main(self, *arguments: str) -> tuple[dict[str, Any], str]:
+        repository = self.root / 'code' / 'repository'
+        repository.mkdir(parents=True)
+        subprocess.run(
+            ['git', 'init', '--quiet', str(repository)],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        command_line = mock.patch.object(
+            sys, 'argv', ['collect.py', str(repository.parent), '--author', 'Nobody', '--since', SINCE, *arguments],
+        )
+        output = io.StringIO()
+        errors = io.StringIO()
+        with command_line, contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+            collect.main()
+        result: dict[str, Any] = json.loads(output.getvalue())
+        return result, errors.getvalue()
+
     def resolved(self, paths: Sequence[Path]) -> list[Path]:
         return [path.resolve() for path in paths]
 
@@ -431,27 +450,26 @@ class SessionsTest(unittest.TestCase):
         self.write(self.default_profile, PROJECT, 'S17', [self.user('S17', 'u1'), self.assistant('S17', 'a1')])
         self.write(self.work_profile, PROJECT, 'S18', [self.user('S18', 'u2'), self.assistant('S18', 'a2', HAIKU)])
         self.write(self.home / '.claude-other', PROJECT, 'S19', [self.user('S19', 'u3'), self.assistant('S19', 'a3')])
-        repository = self.root / 'code' / 'repository'
-        repository.mkdir(parents=True)
-        subprocess.run(
-            ['git', 'init', '--quiet', str(repository)],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        arguments = [
-            'collect.py', str(repository.parent), '--author', 'Nobody', '--since', SINCE,
-            '--config-dir', str(self.default_profile), '--config-dir', str(self.work_profile),
-        ]
-        output = io.StringIO()
-        command_line = mock.patch.object(sys, 'argv', arguments)
-        with command_line, contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
-            collect.main()
-        claude = json.loads(output.getvalue())['claude']
+        result, _ = self.main('--config-dir', str(self.default_profile), '--config-dir', str(self.work_profile))
+        claude = result['claude']
         scanned = [Path(profile) for profile in claude['profiles_scanned']]
         self.assertEqual(self.resolved(scanned), self.resolved([self.default_profile, self.work_profile]))
         self.assertEqual(claude['summary']['total_sessions'], 2)
         self.assertEqual(claude['cost_by_model'], {OPUS: 4.0, HAIKU_KEY: 1.0})
+
+    def test_main_reports_scanned_profiles_even_without_sessions(self) -> None:
+        empty = self.profile(self.root / 'empty')
+        tilde = self.profile(self.home / '.claude-tilde')
+        missing = self.root / 'missing'
+        missing.mkdir()
+        result, errors = self.main(
+            '--config-dir', str(empty), '--config-dir', str(missing), '--config-dir', '~/.claude-tilde',
+        )
+        claude = result['claude']
+        self.assertEqual(list(claude), ['profiles_scanned'])
+        scanned = [Path(profile) for profile in claude['profiles_scanned']]
+        self.assertEqual(self.resolved(scanned), self.resolved([empty, tilde]))
+        self.assertIn(f'Skipping --config-dir {missing}: it has no projects/ directory', errors)
 
 
 if __name__ == '__main__':
