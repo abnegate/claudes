@@ -165,7 +165,7 @@ A workstream conductor hands back the Workstream report (see Nested workstreams)
 
 Conduct from the top level by default: one workstream, interactive iteration, or any plan that fits one cycle. Nest when the plan returns `## Workstreams` and at least one of these holds:
 - 2 or more workstreams have disjoint ownership, couple only at final wiring, and each needs its own cycle (3 or more subtasks, or several waves)
-- The waves would overflow the concurrency budget or the top-level context
+- The top-level context would overflow, or independent workstreams would otherwise wait on each other's wave barriers
 
 A multi-repo task always nests: one conductor per repo.
 
