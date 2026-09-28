@@ -148,27 +148,49 @@ gh release view <version> --json url,tagName,isPrerelease,createdAt
 
 ## Examples
 
-Each `gh release create` below reads the changelog heredoc from step 4 on stdin.
-
 **Explicit version:**
 Prompt: `release 1.2.3`
 1. Build changelog from commits since last tag
-2. `gh release create 1.2.3 --title '1.2.3' --target main --notes-file -`
+2. Create the release:
+
+```bash
+gh release create 1.2.3 --title '1.2.3' --target main --notes-file - <<'EOF'
+[changelog body from step 3]
+EOF
+```
 
 **Auto-detect:**
 Prompt: `create a release`
 1. Fetch last tag (`1.2.3`); the commits since are `feat(auth): add passkey login` and `fix(api): accept empty filters`, and the footer command prints nothing
 2. Detect bump: minor — `feat(auth): add passkey login`
 3. Show confirmation with changelog preview and proposed version (`1.3.0`)
-4. After user confirms: `gh release create 1.3.0 --title '1.3.0' --target main --notes-file -`
+4. After user confirms:
+
+```bash
+gh release create 1.3.0 --title '1.3.0' --target main --notes-file - <<'EOF'
+[changelog body from step 3]
+EOF
+```
 
 **Breaking change:**
 Prompt: `ship it`
 1. Fetch last tag (`1.3.0`); `feat(api)!: remove v1 routes` has `!` before the colon (a `BREAKING CHANGE:` footer on any commit counts the same)
 2. Detect bump: major; the changelog opens with Breaking Changes: `- **api:** Remove v1 routes`
 3. Show confirmation with changelog preview and proposed version (`2.0.0`)
-4. After user confirms: `gh release create 2.0.0 --title '2.0.0' --target main --notes-file -`
+4. After user confirms:
+
+```bash
+gh release create 2.0.0 --title '2.0.0' --target main --notes-file - <<'EOF'
+[changelog body from step 3]
+EOF
+```
 
 **Pre-release:**
 Prompt: `cut a release 2.0.0-beta.1 on develop`
-1. `gh release create 2.0.0-beta.1 --title '2.0.0-beta.1' --target develop --prerelease --notes-file -`
+1. Create the pre-release:
+
+```bash
+gh release create 2.0.0-beta.1 --title '2.0.0-beta.1' --target develop --prerelease --notes-file - <<'EOF'
+[changelog body from step 3]
+EOF
+```
