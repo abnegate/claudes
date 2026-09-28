@@ -148,7 +148,7 @@ The verifier runs all checks and confirms every acceptance criterion is met.
 
 ### Stage 7: Report
 
-A workstream conductor's final action is `SubagentHandback({message: <Workstream report>})`, in the format under Nested workstreams. The top-level conductor summarizes for the user:
+A workstream conductor hands back the Workstream report (see Nested workstreams). The top-level conductor summarizes for the user:
 - What was planned (subtask count, parallelism)
 - What was executed (which agents ran)
 - Review findings and how they were addressed
@@ -177,13 +177,13 @@ How the top-level conductor runs Stage 3 with workstreams:
 3. Give each conductor its workstream slice (scope and acceptance criteria), the repo, its integration branch and absolute worktree path, BASE, its depth (1), its concurrency budget, the verify commands, the project conventions, and the Workstream report format below.
 4. Dependent workstreams wait for a later wave, branched from the BASE recorded after the earlier wave is integrated.
 
-**Waiting inside a workstream.** A workstream conductor never ends its turn while children run: ending the turn does not wait for background children, and the harness immediately demands the handback. It launches stage agents with foreground `Agent` calls (several in one message run concurrently and return together), or runs a background pool and keeps its turn alive with a blocking foreground wait: a foreground Bash command that returns when a child finishes, repeated while children run. A bare `sleep` is blocked; a loop works, for example one that polls the child's `output_file` for its `SubagentHandback` without printing the file. Each completion notification arrives after the next tool result. Its final action is `SubagentHandback` with the Workstream report. The top-level conductor may end its turn; notifications wake it.
+**Waiting inside a workstream.** A workstream conductor never ends its turn while children run: ending the turn does not wait for background children, and the harness immediately demands the handback. It launches stage agents with foreground `Agent` calls (several in one message run concurrently and return together), or runs a background pool and keeps its turn alive with a blocking foreground wait: a foreground Bash command that returns when a child finishes, repeated while children run. A bare `sleep` is blocked; a loop works, for example one that polls the child's `output_file` for its `SubagentHandback` without printing the file. Each completion notification arrives after the next tool result. The top-level conductor may end its turn; notifications wake it.
 
 **Integration.** When every conductor has reported, one top-level consolidator integrates the `ws-*` branches into the top integration branch (Stage 4), and the top-level reviewer and verifier cover the combined diff (Stages 5 and 6).
 
 **Escalation.** Conductors never ask the user. A BLOCKED report goes to the top level, which asks the user and then continues that conductor with `SendMessage`.
 
-**Workstream report.** The conductor's final action is `SubagentHandback({message: <this report>})`:
+**Workstream report.** The conductor's final action is `SubagentHandback({message: <this report>})`; if `SubagentHandback` is not among its tools, it ends its turn with the report as its final message, once no child is running:
 
 ```
 ## Workstream report: <name>
