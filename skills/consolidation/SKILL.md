@@ -129,7 +129,7 @@ Prompt it with:
 
 The reviewer returns categorized issues (critical/major/minor).
 
-**If critical or major issues exist**: fix them. Spawn architect agents in worktrees if fixes span multiple files, or a single architect if they're isolated. Re-run the reviewer on the fixes. Each iteration, only fix issues at the current severity floor or above — first pass: critical + major + minor. Second pass: critical + major only. Third pass onward: critical only. Stop when the current floor produces no issues. This naturally converges in 2-3 cycles without an artificial cap.
+**If critical or major issues exist**: fix them. Spawn architect agents in worktrees if fixes span multiple files, or a single architect if they're isolated. Worktree fix architects run as a wave: record BASE first, and a consolidator integrates their branches (Stage 4) before the re-review. Re-run the reviewer on the fixes. Each iteration, only fix issues at the current severity floor or above — first pass: critical + major + minor. Second pass: critical + major only. Third pass onward: critical only. Stop when the current floor produces no issues. This naturally converges in 2-3 cycles without an artificial cap.
 
 ### Stage 6: Final verification
 
