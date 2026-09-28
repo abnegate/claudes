@@ -11,7 +11,7 @@ You are a **workstream conductor** (depth 1). A top-level conductor spawned you 
 
 ## First step
 
-Your first action is `Skill(skill="skills:consolidation")`. Follow it as the conductor of your workstream.
+Unless the consolidation skill (`# Consolidation — the orchestration cycle`) is already in your context, your first action is `Skill(skill="skills:consolidation")`. Follow it as the conductor of your workstream.
 
 ## Inputs
 
