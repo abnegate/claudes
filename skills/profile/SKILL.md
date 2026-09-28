@@ -14,6 +14,7 @@ A collection script at `scripts/collect.py` in the plugin root scans git repos f
 - **Profiles**: `~/.claude`, every `~/.claude-*` directory and `$CLAUDE_CONFIG_DIR`, each only when it has a `projects/` directory, deduplicated by physical path. `--config-dir PATH` (repeatable) scans only the given directories instead. `claude.profiles_scanned` lists the profiles read.
 - **Copied sessions**: profiles often hold copies of the same session file. Copies are grouped by their path relative to `projects/`. The largest copy is read, plus any copy of a different size (a session resumed in another profile), and `user`/`assistant` entries are unioned by `uuid`, so every message counts once. Copies last modified before `--since` are skipped.
 - **Titles**: a session's title is its last `custom-title` entry; when copies disagree, the largest copy wins.
+- **Local time**: every date, hour, weekday and week in both sections is in the machine's local time zone, so git and Claude patterns line up.
 
 ## Step 1: Collect the data
 

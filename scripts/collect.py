@@ -35,6 +35,7 @@ TIME_FORMAT = '%H:%M'
 WEEKDAY_FORMAT = '%A'
 WEEK_FORMAT = '%Y-W%V'
 MONTH_FORMAT = '%Y-%m'
+MILLISECOND_TIMESTAMPS_FROM = 10_000_000_000
 WEEKDAYS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 WEEKEND = ('Saturday', 'Sunday')
 TIME_BUCKETS = ((5, 9, 'early_morning'), (9, 12, 'morning'), (12, 14, 'lunch'), (14, 17, 'afternoon'), (17, 21, 'evening'))
@@ -169,20 +170,19 @@ def collect_commits(repo_path: str, author: str, since: str) -> list[dict[str, A
         if len(fields) < 3:
             continue
         commit_hash, date_iso, subject = fields
-        try:
-            committed = datetime.fromisoformat(date_iso)
-        except ValueError:
+        authored = parse_timestamp(date_iso)
+        if authored is None:
             continue
         commits.append({
             'hash': commit_hash[:8],
             'datetime': date_iso,
-            'date': committed.strftime(DATE_FORMAT),
-            'time': committed.strftime(TIME_FORMAT),
-            'hour': committed.hour,
-            'weekday': committed.strftime(WEEKDAY_FORMAT),
-            'weekday_num': committed.isoweekday(),
-            'week': committed.strftime(WEEK_FORMAT),
-            'month': committed.strftime(MONTH_FORMAT),
+            'date': authored.strftime(DATE_FORMAT),
+            'time': authored.strftime(TIME_FORMAT),
+            'hour': authored.hour,
+            'weekday': authored.strftime(WEEKDAY_FORMAT),
+            'weekday_num': authored.isoweekday(),
+            'week': authored.strftime(WEEK_FORMAT),
+            'month': authored.strftime(MONTH_FORMAT),
             'subject': subject,
         })
     return commits
@@ -294,14 +294,18 @@ def compute_streaks(dates: list[str]) -> dict[str, Any]:
     }
 
 
+def local_datetime(moment: datetime) -> datetime:
+    return moment.astimezone().replace(tzinfo=None) if moment.tzinfo else moment
+
+
 def parse_timestamp(value: Any) -> datetime | None:
-    if isinstance(value, (int, float)):
-        return datetime.fromtimestamp(value / 1000 if value > 1e10 else value)
-    if isinstance(value, str):
-        try:
-            return datetime.fromisoformat(value.replace('Z', '+00:00')).replace(tzinfo=None)
-        except ValueError:
-            return None
+    try:
+        if isinstance(value, (int, float)):
+            return datetime.fromtimestamp(value / 1000 if value > MILLISECOND_TIMESTAMPS_FROM else value)
+        if isinstance(value, str):
+            return local_datetime(datetime.fromisoformat(value.replace('Z', '+00:00')))
+    except (OverflowError, OSError, ValueError):
+        return None
     return None
 
 
@@ -370,7 +374,7 @@ def default_profiles() -> list[Path]:
 
 
 def collect_claude_sessions(since_date: str, profiles: Sequence[Path]) -> list[dict[str, Any]]:
-    since = datetime.fromisoformat(since_date)
+    since = local_datetime(datetime.fromisoformat(since_date))
     sessions: dict[str, dict[str, Any]] = {}
     titles: dict[str, str] = {}
     seen_entries: set[str] = set()

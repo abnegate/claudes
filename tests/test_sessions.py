@@ -7,11 +7,13 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from collections import Counter
 from collections.abc import Mapping
 from collections.abc import Sequence
 from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -23,6 +25,12 @@ import collect
 SINCE = '2020-01-01'
 STALE_MODIFICATION_TIME = datetime(2019, 1, 1).timestamp()
 TIMESTAMP = '2026-09-01T10:00:00.000Z'
+AUCKLAND = 'Pacific/Auckland'
+NEW_YORK = 'America/New_York'
+AUCKLAND_MORNING = '2026-09-01T13:30:00.000Z'
+NEW_YORK_EVENING = '2026-09-01T02:00:00.000Z'
+NEW_YORK_NIGHT = '2026-09-01T05:00:00.000Z'
+NEW_YORK_EVENING_MODIFICATION_TIME = datetime(2026, 9, 1, 3, tzinfo=timezone.utc).timestamp()
 MILLION = 1_000_000
 PLACES = 6
 PROJECTS = 'projects'
@@ -65,12 +73,19 @@ class SessionsTest(unittest.TestCase):
         self.default_profile = self.home / '.claude'
         self.work_profile = self.home / '.claude-work'
 
-    def user(self, session_id: str, uuid: str, content: str = 'go') -> dict[str, Any]:
+    def use_time_zone(self, zone: str) -> None:
+        self.addCleanup(time.tzset)
+        environment = mock.patch.dict(os.environ, {'TZ': zone})
+        environment.start()
+        self.addCleanup(environment.stop)
+        time.tzset()
+
+    def user(self, session_id: str, uuid: str, content: str = 'go', timestamp: str = TIMESTAMP) -> dict[str, Any]:
         return {
             'type': USER,
             'uuid': uuid,
             'sessionId': session_id,
-            'timestamp': TIMESTAMP,
+            'timestamp': timestamp,
             'cwd': WORKING_DIRECTORY,
             'message': {'role': USER, 'content': content},
         }
@@ -82,12 +97,13 @@ class SessionsTest(unittest.TestCase):
         model: str = OPUS,
         usage: Mapping[str, object] = INPUT_USAGE,
         message_id: str | None = None,
+        timestamp: str = TIMESTAMP,
     ) -> dict[str, Any]:
         return {
             'type': ASSISTANT,
             'uuid': uuid,
             'sessionId': session_id,
-            'timestamp': TIMESTAMP,
+            'timestamp': timestamp,
             'cwd': WORKING_DIRECTORY,
             'message': {
                 'id': message_id or f'message-{uuid}',
@@ -111,8 +127,8 @@ class SessionsTest(unittest.TestCase):
         (path / PROJECTS).mkdir(parents=True, exist_ok=True)
         return path
 
-    def collect_sessions(self, *profiles: Path) -> dict[str, dict[str, Any]]:
-        sessions = collect.collect_claude_sessions(SINCE, list(profiles))
+    def collect_sessions(self, *profiles: Path, since: str = SINCE) -> dict[str, dict[str, Any]]:
+        sessions = collect.collect_claude_sessions(since, list(profiles))
         counts = Counter(session['id'] for session in sessions)
         repeated = [session_id for session_id, count in counts.items() if count > 1]
         self.assertEqual(repeated, [], 'a session is reported more than once')
@@ -286,6 +302,49 @@ class SessionsTest(unittest.TestCase):
         session = self.collect_sessions(self.default_profile, self.work_profile)['S20']
         self.assertEqual(session['assistant_messages'], 2)
         self.assertAlmostEqual(session['cost_by_model'][OPUS], FINAL_FAST_COST, places=PLACES)
+
+    def test_session_times_are_local(self) -> None:
+        self.use_time_zone(AUCKLAND)
+        self.write(self.default_profile, PROJECT, 'S21', [
+            self.user('S21', 'u1', timestamp=AUCKLAND_MORNING),
+            self.assistant('S21', 'a1', timestamp=AUCKLAND_MORNING),
+        ])
+        session = self.collect_sessions(self.default_profile)['S21']
+        fields = {key: session[key] for key in ('created', 'date', 'hour', 'weekday', 'week', 'month')}
+        self.assertEqual(fields, {
+            'created': '2026-09-02T01:30:00',
+            'date': '2026-09-02',
+            'hour': 1,
+            'weekday': 'Wednesday',
+            'week': '2026-W36',
+            'month': '2026-09',
+        })
+        self.assertEqual(list(self.collect_sessions(self.default_profile, since='2026-09-02')), ['S21'])
+
+    def test_entry_filter_agrees_with_the_modification_time_filter(self) -> None:
+        self.use_time_zone(NEW_YORK)
+        stale = self.write(self.default_profile, PROJECT, 'S22', [self.user('S22', 'u1', timestamp=NEW_YORK_EVENING)])
+        os.utime(stale, (NEW_YORK_EVENING_MODIFICATION_TIME, NEW_YORK_EVENING_MODIFICATION_TIME))
+        self.write(self.default_profile, PROJECT, 'S23', [self.user('S23', 'u2', timestamp=NEW_YORK_EVENING)])
+        self.write(self.default_profile, PROJECT, 'S24', [self.user('S24', 'u3', timestamp=NEW_YORK_NIGHT)])
+        self.assertEqual(list(self.collect_sessions(self.default_profile, since='2026-09-01')), ['S24'])
+
+    def test_timestamps_of_one_instant_agree_in_every_format(self) -> None:
+        self.use_time_zone(AUCKLAND)
+        instant = datetime(2026, 9, 1, 13, 30, tzinfo=timezone.utc)
+        values: tuple[object, ...] = (
+            '2026-09-01T13:30:00Z',
+            AUCKLAND_MORNING,
+            '2026-09-02T01:30:00+12:00',
+            instant.timestamp(),
+            int(instant.timestamp() * 1000),
+        )
+        for value in values:
+            with self.subTest(value=value):
+                self.assertEqual(collect.parse_timestamp(value), datetime(2026, 9, 2, 1, 30))
+        for invalid in (None, 'yesterday', 1e30, [], {}):
+            with self.subTest(invalid=invalid):
+                self.assertIsNone(collect.parse_timestamp(invalid))
 
     def test_session_keeps_existing_keys(self) -> None:
         self.write(self.default_profile, PROJECT, 'S14', [self.user('S14', 'u1'), self.assistant('S14', 'a1')])
