@@ -6,7 +6,7 @@ argument-hint: <feature description>
 
 # Orchestrate Feature
 
-Full end-to-end pipeline: sync the base branch, cut a new working branch, implement the feature, run improve cycles, open a PR, then auto-fix CI once checks have had time to run.
+Full end-to-end pipeline: sync the base branch, cut a new working branch, implement the feature, run improve cycles, open a PR, then auto-fix CI once its checks finish.
 
 ## Arguments
 
@@ -56,9 +56,11 @@ Prefix based on intent parsed from `$ARGUMENTS`:
 - `chore/` for maintenance
 - `docs/` for docs
 
+Create the branch, replacing `feat/` with the chosen prefix:
+
 ```bash
 SLUG=<computed slug>
-BRANCH="feat/$SLUG"   # or fix/, refactor/, etc.
+BRANCH="feat/$SLUG"
 git checkout -b "$BRANCH"
 ```
 
@@ -86,7 +88,7 @@ Invoke the **consolidation** skill, which loads the full orchestration cycle (pl
 Skill(skill="skills:consolidation", args="## Task\n$ARGUMENTS\n\n## Constraints\n- TDD where project has tests\n- Follow project conventions\n- Commit logically-grouped changes\n- No TODOs, no placeholders\n\n## Working directory\n[cwd]")
 ```
 
-This replaces the old pattern of a single architect + separate improve cycles. The skill runs in *your* context because subagents cannot spawn further subagents — you do the dispatching.
+This replaces the old pattern of a single architect + separate improve cycles. The skill runs in *your* context: you conduct it (the consolidation skill decides whether to delegate workstreams to `conductor` subagents).
 
 After the cycle finishes, verify:
 ```bash
@@ -116,13 +118,28 @@ Skill(skill="skills:pr")
 
 **Capture the PR URL from the skill's output.** Store it as `PR_URL`. If the skill output does not include a URL, run `gh pr view --json url -q .url` on the current branch to fetch it.
 
-## Step 7: Wait 5 Minutes for CI
+## Step 7: Wait for CI
 
-CI needs time to start and report results. Sleep for 5 minutes before running pr-fix:
+CI needs time to start and report results. Wait for the checks on the pushed head to finish before running pr-fix:
 
 ```bash
-sleep 300
+: "${PR_URL:?set PR_URL to the pull request URL}" "${REPO:?set REPO to the absolute path of the local checkout}"
+HEAD_SHA=$(git -C "$REPO" rev-parse HEAD) || exit 2
+for _ in $(seq 1 30); do
+  PR_HEAD=$(gh pr view "$PR_URL" --json headRefOid --jq .headRefOid)
+  CHECK_COUNT=$(gh pr checks "$PR_URL" --json name --jq length 2>/dev/null || echo 0)
+  if [ "$PR_HEAD" = "$HEAD_SHA" ] && [ "$CHECK_COUNT" -gt 0 ]; then
+    exec gh pr checks "$PR_URL" --watch --fail-fast --interval 30
+  fi
+  sleep 10
+done
+echo "No CI checks registered for $HEAD_SHA after 5 minutes"
+exit 3
 ```
+
+Run the block in one Bash call with `run_in_background: true`, with the PR URL and the checkout's absolute path assigned on the line before it, for example `PR_URL=https://github.com/owner/repo/pull/123 REPO=/Users/me/Local/repo`. Both values are required because the Bash tool keeps no variables between calls and a subagent's cwd resets.
+
+Exit codes: 0 means all checks passed; 1 means a check failed (`--fail-fast`); 3 means no checks registered within 5 minutes (the repo may have no CI, so continue with review comments only); any other non-zero means the command itself failed (unset `PR_URL` or `REPO`, a path that is not a checkout, a `gh` error): fix it and run again. Monitor is the alternative when per-check events are wanted.
 
 Do NOT skip this wait - running pr-fix immediately races CI and sees no failures to fix.
 
@@ -158,7 +175,7 @@ After pr-fix completes, report:
 ## Hard Rules
 
 1. **DO NOT STOP MID-WORKFLOW** - Run all steps through to pr-fix completion unless a hard blocker appears.
-2. **DO NOT SKIP THE 5-MINUTE WAIT** - pr-fix is useless without CI results to analyze.
+2. **DO NOT RUN pr-fix BEFORE CI FINISHES** - pr-fix is useless without CI results to analyze.
 3. **DO NOT DESTROY USER WORK** - If the working tree is dirty at Step 1, stop and ask.
 4. **DO NOT GUESS THE BASE BRANCH** - Use the detection logic; ask if it fails.
 5. **ROUND COMPLEXITY UP, NOT DOWN** - Extra review cycles are cheap insurance.
