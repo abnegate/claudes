@@ -51,8 +51,8 @@ Move issue to "In Progress" state via Linear MCP.
 
 ```bash
 ISSUE_ID="$ARGUMENTS"
-ISSUE_TITLE=$(echo "[title from Linear]" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-40)
-git checkout -b "${ISSUE_ID}-${ISSUE_TITLE}"
+BRANCH_SLUG=$(echo "[title from Linear]" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-40)
+git checkout -b "${ISSUE_ID}-${BRANCH_SLUG}"
 ```
 
 ### 0.4 Clarify If Needed
@@ -83,10 +83,13 @@ After the cycle completes, prepare the PR in parallel with a final verification:
 
 ### 2.1 Create PR Linked to Issue
 
+Title the PR `<type>(<scope>): <Linear title>`. The type is `fix` when the issue carries a bug label and `feat` otherwise; the scope names the area touched and is omitted for repo-wide changes; `<Linear title>` is the issue's title text from Phase 0, not the branch slug.
+
 Using the PR content prepared by Agent 2 (adjusted if fixes were needed):
 
 ```bash
-gh pr create --title "(feat): ${ISSUE_TITLE}" --body "$(cat <<EOF
+ISSUE_ID="$ARGUMENTS"
+gh pr create --title "<type>(<scope>): <Linear title>" --body "$(cat <<EOF
 ## Summary
 Implements ${ISSUE_ID}
 
