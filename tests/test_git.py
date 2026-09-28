@@ -231,8 +231,8 @@ class GitTest(unittest.TestCase):
 
     def test_analysis_summarises_commits(self) -> None:
         repository = self.repository('zone')
-        self.commit(repository, 'feat(api): add login', '2026-09-26T09:30:00')
-        self.commit(repository, 'fix: login redirect', '2026-09-26T22:00:00')
+        self.commit(repository, 'feat: add login', '2026-09-26T09:30:00')
+        self.commit(repository, 'fix: ui login redirect', '2026-09-26T22:00:00')
         self.commit(repository, 'Merge branch main', '2026-09-28T13:00:00')
         commits = collect.collect_commits(str(repository), AUTHOR, '2026-09-01')
         analysis = collect.analyze(commits, {'zone': commits})
@@ -254,7 +254,9 @@ class GitTest(unittest.TestCase):
         self.assertEqual(analysis['by_day_of_week']['Saturday'], 2)
         self.assertEqual(analysis['by_hour'][22], 1)
         self.assertEqual(analysis['by_repo_type'], {'zone': {'feat': 1, 'fix': 1, 'merge': 1}})
-        self.assertEqual(analysis['top_words']['login'], 2)
+        self.assertEqual(analysis['top_words'], {
+            'login': 2, 'feat': 1, 'add': 1, 'fix': 1, 'redirect': 1, 'merge': 1, 'branch': 1, 'main': 1,
+        })
 
     def test_streaks(self) -> None:
         today = date.today()
