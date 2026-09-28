@@ -62,6 +62,9 @@ TYPED_SOURCE = 'typed'
 HUMAN = {'kind': 'human'}
 SCHEDULED = {'kind': 'scheduled-trigger'}
 PYTHON_SDK = 'sdk-py'
+TYPESCRIPT_SDK = 'sdk-ts'
+PRINT_MODE = 'sdk-cli'
+DESKTOP = 'claude-desktop'
 SESSION_KEYS = frozenset({
     'id', 'created', 'date', 'hour', 'weekday', 'week', 'month', 'model', 'models', 'cost', 'cost_by_model',
     'unpriced_models', 'turns', 'user_messages', 'assistant_messages', 'tool_calls', 'tool_count', 'skills_used',
@@ -133,6 +136,16 @@ class SessionsTest(unittest.TestCase):
 
     def custom_title(self, session_id: str, title: str) -> dict[str, Any]:
         return {'type': CUSTOM_TITLE, 'customTitle': title, 'sessionId': session_id}
+
+    def sent(self, entry: Mapping[str, Any], origin: Mapping[str, str] | None = None) -> dict[str, Any]:
+        return {**entry, 'promptSource': SDK_SOURCE, **({'origin': dict(origin)} if origin else {})}
+
+    def through(self, entrypoint: str, *entries: Mapping[str, Any]) -> list[dict[str, Any]]:
+        return [{**entry, 'entrypoint': entrypoint} for entry in entries]
+
+    def calling(self, entry: dict[str, Any], tool: str, **tool_input: str) -> dict[str, Any]:
+        entry['message']['content'] = [{'type': 'tool_use', 'name': tool, 'input': tool_input}]
+        return entry
 
     def write(self, profile: Path, project: str, session_id: str, entries: Sequence[Mapping[str, Any]]) -> Path:
         path = profile / PROJECTS / project / f'{session_id}.jsonl'
@@ -494,6 +507,97 @@ class SessionsTest(unittest.TestCase):
         sessions = self.collect_sessions(self.default_profile)
         self.assertEqual(sessions['S56']['turns'], 2)
         self.assertEqual(sessions['S57']['turns'], 1)
+
+    def test_automated_runs_count_toward_cost_only(self) -> None:
+        self.use_time_zone(UTC)
+        self.write(self.default_profile, PROJECT, 'S80', [
+            self.custom_title('S80', 'Login fix'),
+            *self.through(
+                DESKTOP,
+                self.sent(self.user('S80', 'u1', 'fix the login bug', '2026-09-01T10:00:00.000Z'), HUMAN),
+                self.calling(self.assistant('S80', 'a1', timestamp='2026-09-01T10:10:00.000Z'), 'Bash'),
+            ),
+        ])
+        self.write(self.default_profile, PROJECT, 'S81', [
+            self.custom_title('S81', 'Nightly triage'),
+            *self.through(
+                PYTHON_SDK,
+                self.sent(self.user('S81', 'u2', 'triage the issues', '2026-09-02T12:00:00.000Z')),
+                self.calling(self.assistant('S81', 'a2', SONNET, timestamp='2026-09-02T12:15:00.000Z'), 'Skill', skill='skills:review'),
+            ),
+        ])
+        self.assertEqual(self.analyze(self.default_profile), {
+            'summary': {
+                'total_sessions': 1,
+                'total_cost_usd': 6.0,
+                'average_cost_per_session': 4.0,
+                'total_turns': 1,
+                'average_turns_per_session': 1.0,
+                'total_tool_calls': 1,
+                'average_tools_per_session': 1.0,
+                'date_range': '2026-09-01 to 2026-09-01',
+                'unique_active_days': 1,
+                'sessions_per_active_day': 1.0,
+            },
+            'automated_sessions': {'sessions': 1, 'cost': 2.0},
+            'duration': {'median_minutes': 10.0, 'average_minutes': 10.0, 'max_minutes': 10.0, 'total_hours': 0.2},
+            'models': {OPUS: 1},
+            'cost_by_model': {OPUS: 4.0, SONNET: 2.0},
+            'unpriced_models': {},
+            'data_sources': {'main-only': 1},
+            'tools': {'Bash': 1},
+            'skills': {},
+            'by_project': {'p': {'sessions': 1, 'cost': 4.0, 'turns': 1, 'tools': 1}},
+            'by_project_hour': {'p': {10: 1}},
+            'by_hour': {hour: int(hour == 10) for hour in range(24)},
+            'by_day_of_week': {day: int(day == 'Tuesday') for day in collect.WEEKDAYS},
+            'by_week': {'2026-W36': 1},
+            'by_month': {'2026-09': 1},
+            'cost_by_week': {'2026-W36': 6.0},
+            'daily_counts': {'2026-09-01': 1},
+            'top_session_words': {'login': 1, 'fix': 1},
+        })
+
+    def test_only_sdk_sessions_without_a_typed_prompt_are_automated(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S82', self.through(PYTHON_SDK, self.sent(self.user('S82', 'u1'), HUMAN)))
+        self.write(self.default_profile, PROJECT, 'S83', self.through(DESKTOP, self.sent(self.user('S83', 'u2'))))
+        self.write(self.default_profile, f'{PROJECT}/S84/subagents', 'agent-1', self.through(PYTHON_SDK, self.sent(self.user('S84', 'u3'))))
+        self.write(self.default_profile, PROJECT, 'S85', self.through(PRINT_MODE, self.sent(self.user('S85', 'u4'))))
+        self.write(self.default_profile, PROJECT, 'S86', self.through(TYPESCRIPT_SDK, self.sent(self.user('S86', 'u5'))))
+        self.write(self.default_profile, PROJECT, 'S88', [
+            *self.through(PYTHON_SDK, self.sent(self.user('S88', 'u6'))),
+            *self.through(DESKTOP, self.sent(self.user('S88', 'u7'))),
+        ])
+        sessions = self.collect_sessions(self.default_profile)
+        self.assertEqual({session_id: (session['entrypoint'], session['automated']) for session_id, session in sessions.items()}, {
+            'S82': (PYTHON_SDK, False),
+            'S83': (DESKTOP, False),
+            'S84': ('', False),
+            'S85': (PRINT_MODE, True),
+            'S86': (TYPESCRIPT_SDK, True),
+            'S88': (PYTHON_SDK, True),
+        })
+
+    def test_automated_runs_alone_leave_only_their_cost(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S87', self.through(
+            PYTHON_SDK, self.sent(self.user('S87', 'u1')), self.assistant('S87', 'a1'),
+        ))
+        analysis = self.analyze(self.default_profile)
+        self.assertEqual(analysis['summary'], {
+            'total_sessions': 0,
+            'total_cost_usd': 4.0,
+            'average_cost_per_session': 0,
+            'total_turns': 0,
+            'average_turns_per_session': 0,
+            'total_tool_calls': 0,
+            'average_tools_per_session': 0,
+            'date_range': None,
+            'unique_active_days': 0,
+            'sessions_per_active_day': 0,
+        })
+        self.assertEqual(analysis['automated_sessions'], {'sessions': 1, 'cost': 4.0})
+        self.assertIsNone(analysis['duration'])
+        self.assertEqual(analysis['cost_by_model'], {OPUS: 4.0})
 
     def test_active_time_caps_idle_gaps_and_counts_subagent_work(self) -> None:
         self.write(self.default_profile, PROJECT, 'S52', [

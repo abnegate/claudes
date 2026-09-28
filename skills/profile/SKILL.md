@@ -79,11 +79,17 @@ The JSON output has two top-level keys: `git` and `claude`. Use **both** to buil
 
 ### Claude section (`claude`)
 
+Automated runs are sessions started through the Agent SDK that have no typed prompt: their main entries carry `entrypoint` `sdk-py`, `sdk-ts` or `sdk-cli` (the CLI run non-interactively, as with `claude -p`), which is how scripts and pipelines drive Claude Code. They count toward the cost keys (`total_cost_usd`, `cost_by_model`, `unpriced_models` and `cost_by_week`) and are summarised in `automated_sessions`. Every other key, from `total_sessions` to `top_session_words`, covers interactive sessions only.
+
 #### Summary
-- Total sessions, **estimated cost** (pay-as-you-go rates, not actual spend on flat-rate plans — note this when presenting)
+- Total sessions, **estimated cost** (pay-as-you-go rates, not actual spend on flat-rate plans — note this when presenting). `total_cost_usd` includes automated runs; `average_cost_per_session` is per interactive session.
 - Total turns, average turns per session. A turn is a prompt typed into a main session; tool results, meta and compact-summary entries, harness messages (task notifications, command output, CI events, interrupt markers), prompts sent to subagents and prompts a program sends through the Agent SDK (`promptSource` is `sdk` and `origin.kind` isn't `human`) don't count.
 - Total tool calls, average tools per session
-- Active days and sessions per active day
+- Active days and sessions per active day. With only automated runs in the window, `total_sessions` is 0 and `date_range` is null.
+
+#### Automated runs (`automated_sessions`)
+- `sessions` counts the automated runs and `cost` is their share of `total_cost_usd`.
+- When there are any, report them on one line of their own (how many runs, what they cost, their share of spend) and keep them out of the habits you describe.
 
 #### Cost by model (`cost_by_model`, `unpriced_models`)
 Costs use the list prices from the pricing page (`PRICING_SOURCE` in the script):
@@ -95,8 +101,8 @@ Costs use the list prices from the pricing page (`PRICING_SOURCE` in the script)
 - `<synthetic>` costs nothing and appears in neither.
 
 #### Duration (`duration`)
-- Median, average, and max active minutes per session. Active time adds up the gaps between a session's entries, subagents included, and counts any gap longer than 15 minutes as 15, so a session left open or resumed days later only counts the time it was in use.
-- `total_hours`: wall-clock active time across all sessions, so parallel sessions count once.
+- Median, average, and max active minutes per interactive session. Active time adds up the gaps between a session's entries, subagents included, and counts any gap longer than 15 minutes as 15, so a session left open or resumed days later only counts the time it was in use.
+- `total_hours`: wall-clock active time across interactive sessions, so parallel sessions count once.
 
 #### Data sources (`data_sources`)
 Each session is tagged with how its data survived:
@@ -132,7 +138,7 @@ If the user asks about gaps in the timeline, explain this cleanup behavior. Don'
 
 #### Cost trends (`cost_by_week`)
 - Spending trajectory. Increasing, stable, or decreasing?
-- Correlate spikes with specific projects or high-commit weeks.
+- Correlate spikes with specific projects or high-commit weeks. Automated runs are in these totals but not in `by_project`.
 
 #### Session vocabulary (`top_session_words`)
 - What themes emerge from session titles? Domain terms, action words.
@@ -145,6 +151,8 @@ Lead with 3-5 bold headline insights. The best insights **cross-reference** git 
 - "Your Claude sessions peak at 1am but your commits peak at 10pm — you research late, commit earlier"
 - "You use Opus for [project] but Sonnet for [project] — the complex backend gets the big model"
 - "[Project] has 3x more Claude sessions per commit than any other repo — heavy AI assistance there"
+
+Spend figures include automated runs, while session, project and timing figures are interactive only, so when a headline pairs spend with sessions or projects, say how much of the spend was automated.
 
 After the headlines, present two detailed sections (Git Activity, Claude Usage) with tables and plain language analysis. Then a combined "Cross-reference" section that ties the two together.
 

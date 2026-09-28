@@ -124,6 +124,8 @@ SESSION_ID_FIELD = 'sessionId'
 TIMESTAMP_FIELD = 'timestamp'
 WORKING_DIRECTORY_FIELD = 'cwd'
 GIT_BRANCH_FIELD = 'gitBranch'
+ENTRYPOINT_FIELD = 'entrypoint'
+SDK_ENTRYPOINTS = ('sdk-py', 'sdk-ts', 'sdk-cli')
 CUSTOM_TITLE_FIELD = 'customTitle'
 META_FIELD = 'isMeta'
 COMPACT_SUMMARY_FIELD = 'isCompactSummary'
@@ -684,6 +686,7 @@ def start_session(session_id: str, timestamp: datetime) -> dict[str, Any]:
         'cost_by_model': defaultdict(float),
         'unpriced_models': Counter(),
         'cwd': '',
+        'entrypoint': '',
         'git_branches': set(),
         'has_subagent_data': False,
         'has_main_data': False,
@@ -704,6 +707,8 @@ def record_entry(
         session['has_subagent_data'] = True
     else:
         session['has_main_data'] = True
+        if isinstance(entry.get(ENTRYPOINT_FIELD), str) and not session['entrypoint']:
+            session['entrypoint'] = entry[ENTRYPOINT_FIELD]
     if entry.get(WORKING_DIRECTORY_FIELD) and not session['cwd']:
         session['cwd'] = entry[WORKING_DIRECTORY_FIELD]
     if entry.get(GIT_BRANCH_FIELD):
@@ -839,6 +844,8 @@ def finish_session(session: dict[str, Any], title: str) -> dict[str, Any]:
         'duration_minutes': round(active_time(active) / MINUTE, 1),
         'active_intervals': active,
         'source': session_source(session),
+        'entrypoint': session['entrypoint'],
+        'automated': session['entrypoint'] in SDK_ENTRYPOINTS and not session['prompts'],
     }
 
 
@@ -856,20 +863,21 @@ def analyze_claude_sessions(sessions: list[dict[str, Any]]) -> dict[str, Any] | 
     if not sessions:
         return None
 
-    total = len(sessions)
+    interactive = [session for session in sessions if not session.get('automated')]
+    automated = [session for session in sessions if session.get('automated')]
+    total = len(interactive)
     total_cost = sum(session['cost'] for session in sessions)
-    total_turns = sum(session['turns'] for session in sessions)
-    total_tools = sum(session['tool_count'] for session in sessions)
+    interactive_cost = sum(session['cost'] for session in interactive)
+    total_turns = sum(session['turns'] for session in interactive)
+    total_tools = sum(session['tool_count'] for session in interactive)
 
-    dates = [session['date'] for session in sessions]
-    first_date = min(dates)
-    last_date = max(dates)
+    dates = [session['date'] for session in interactive]
     unique_days = len(set(dates))
 
-    tool_counts = dict(Counter(tool for session in sessions for tool in session['tool_calls']).most_common(TOP_TOOLS))
-    skill_counts = dict(Counter(skill for session in sessions for skill in session['skills_used']).most_common(TOP_SKILLS))
+    tool_counts = dict(Counter(tool for session in interactive for tool in session['tool_calls']).most_common(TOP_TOOLS))
+    skill_counts = dict(Counter(skill for session in interactive for skill in session['skills_used']).most_common(TOP_SKILLS))
     model_counts = dict(
-        Counter(model for session in sessions for model in session.get('models') or [session['model']]).most_common()
+        Counter(model for session in interactive for model in session.get('models') or [session['model']]).most_common()
     )
 
     cost_by_model: defaultdict[str, float] = defaultdict(float)
@@ -882,11 +890,11 @@ def analyze_claude_sessions(sessions: list[dict[str, Any]]) -> dict[str, Any] | 
         model: round(cost, 4) for model, cost in sorted(cost_by_model.items(), key=lambda item: item[1], reverse=True)
     }
 
-    source_counts = dict(Counter(session.get('source', UNKNOWN_SOURCE) for session in sessions).most_common())
+    source_counts = dict(Counter(session.get('source', UNKNOWN_SOURCE) for session in interactive).most_common())
 
-    project_counts = Counter(session['project'] for session in sessions if session['project'])
+    project_counts = Counter(session['project'] for session in interactive if session['project'])
     sessions_by_project: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
-    for session in sessions:
+    for session in interactive:
         sessions_by_project[session['project']].append(session)
     project_stats = {
         project: {
@@ -898,21 +906,21 @@ def analyze_claude_sessions(sessions: list[dict[str, Any]]) -> dict[str, Any] | 
         for project, count in project_counts.most_common()
     }
 
-    hourly = Counter(session['hour'] for session in sessions)
+    hourly = Counter(session['hour'] for session in interactive)
     hourly_full = {hour: hourly.get(hour, 0) for hour in range(24)}
 
-    daily = Counter(session['weekday'] for session in sessions)
+    daily = Counter(session['weekday'] for session in interactive)
     daily_sorted = {day: daily.get(day, 0) for day in WEEKDAYS}
 
-    weekly_sorted = dict(sorted(Counter(session['week'] for session in sessions).items()))
-    monthly_sorted = dict(sorted(Counter(session['month'] for session in sessions).items()))
+    weekly_sorted = dict(sorted(Counter(session['week'] for session in interactive).items()))
+    monthly_sorted = dict(sorted(Counter(session['month'] for session in interactive).items()))
     daily_sorted_counts = dict(sorted(Counter(dates).items()))
 
-    durations = [session['duration_minutes'] for session in sessions if session['duration_minutes'] > 0]
+    durations = [session['duration_minutes'] for session in interactive if session['duration_minutes'] > 0]
     duration_stats = None
     if durations:
         durations_sorted = sorted(durations)
-        active = merge_intervals(interval for session in sessions for interval in session['active_intervals'])
+        active = merge_intervals(interval for session in interactive for interval in session['active_intervals'])
         duration_stats = {
             'median_minutes': round(durations_sorted[len(durations_sorted) // 2], 1),
             'average_minutes': round(sum(durations) / len(durations), 1),
@@ -931,7 +939,7 @@ def analyze_claude_sessions(sessions: list[dict[str, Any]]) -> dict[str, Any] | 
     }
 
     title_words: Counter[str] = Counter()
-    for session in sessions:
+    for session in interactive:
         for word in TITLE_WORD_SEPARATORS.split((session.get('title') or '').lower()):
             if len(word) >= MINIMUM_WORD_LENGTH and word not in TITLE_STOP_WORDS:
                 title_words[word] += 1
@@ -941,14 +949,18 @@ def analyze_claude_sessions(sessions: list[dict[str, Any]]) -> dict[str, Any] | 
         'summary': {
             'total_sessions': total,
             'total_cost_usd': round(total_cost, 2),
-            'average_cost_per_session': round(total_cost / total, 4) if total else 0,
+            'average_cost_per_session': round(interactive_cost / total, 4) if total else 0,
             'total_turns': total_turns,
             'average_turns_per_session': round(total_turns / total, 1) if total else 0,
             'total_tool_calls': total_tools,
             'average_tools_per_session': round(total_tools / total, 1) if total else 0,
-            'date_range': f'{first_date} to {last_date}',
+            'date_range': f'{min(dates)} to {max(dates)}' if dates else None,
             'unique_active_days': unique_days,
             'sessions_per_active_day': round(total / unique_days, 1) if unique_days else 0,
+        },
+        'automated_sessions': {
+            'sessions': len(automated),
+            'cost': round(sum(session['cost'] for session in automated), 2),
         },
         'duration': duration_stats,
         'models': model_counts,
