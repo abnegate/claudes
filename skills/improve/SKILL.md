@@ -100,7 +100,9 @@ Combine findings from all six agents into a single prioritized list. Remove dupl
 
 ### Step 4: Parallel Fixes (Consolidation Pattern)
 
-Partition the issue list into groups by area/theme. Use the **consolidation pattern** — launch each fix group as a parallel worktree-isolated agent (`isolation: "worktree"`). Agents can freely edit overlapping files; the consolidator handles merges.
+Partition the issue list into groups by area/theme. Use the **consolidation pattern** — launch each fix group as a parallel agent in its own worktree. Agents can freely edit overlapping files; the consolidator handles merges.
+
+Before launching them, record BASE and follow the consolidation skill's Worktree BASE protocol for every worktree agent. BASE is the current `HEAD` SHA (`git rev-parse HEAD`), not the base branch from Step 1.
 
 **Per worktree agent:**
 1. Verify each assigned issue is valid (not a false positive)
@@ -123,7 +125,7 @@ Launch a **verifier** agent (`subagent_type: "verifier"`) in post-verification m
 After all fixes pass verification, delegate to `skills:commit`:
 
 ```
-Skill(skill="skills:commit", args="(refactor): improve [summary of what was improved]")
+Skill(skill="skills:commit", args="refactor(<scope>): improve [summary of what was improved]")
 ```
 
 Use `refactor` for structural improvements, `fix` for bug fixes, `perf` for performance — or `skills:commit-all` if the changes span multiple types.
