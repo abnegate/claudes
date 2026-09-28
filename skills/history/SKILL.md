@@ -9,7 +9,7 @@ Search the Claude Code conversation history JSONL files of every profile for the
 
 ## Instructions
 
-1. Find the session files that mention the query. Every profile (`~/.claude`, each `~/.claude-*` directory and `$CLAUDE_CONFIG_DIR`) keeps them in `projects/<project-key>/`, where the project key is the working directory's physical path with every character other than a letter or digit replaced by `-`. For example:
+1. Find the session files that mention the query. Every profile (`~/.claude`, each `~/.claude-*` directory, symlinked ones included, and `$CLAUDE_CONFIG_DIR`) keeps them in `projects/<project-key>/`, where the project key is the working directory's physical path with every character other than a letter or digit replaced by `-`. For example:
    - `/Users/jakebarnby/Local/spotify_sync` → `-Users-jakebarnby-Local-spotify-sync`
    - `/Users/jakebarnby/Local/.query-train` → `-Users-jakebarnby-Local--query-train`
 
@@ -19,7 +19,7 @@ Search the Claude Code conversation history JSONL files of every profile for the
    PROJECT_KEY=$(pwd -P | sed 's#[^A-Za-z0-9]#-#g')
    if [ "${ALL_PROJECTS:-0}" = 1 ]; then PROJECT_KEY=''; fi
    {
-     find "$HOME" -maxdepth 1 -type d \( -name .claude -o -name '.claude-*' \)
+     find -L "$HOME" -maxdepth 1 \( -name .claude -o -name '.claude-*' \) -type d
      if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then echo "$CLAUDE_CONFIG_DIR"; fi
    } | while IFS= read -r PROFILE_DIR; do
      if [ -d "$PROFILE_DIR/projects" ]; then (cd "$PROFILE_DIR" && pwd -P); fi
