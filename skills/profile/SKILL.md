@@ -120,7 +120,7 @@ If the user asks about gaps in the timeline, explain this cleanup behavior. Don'
 - Which slash commands / skills are invoked. Shows workflow preferences.
 
 #### By project (`by_project`)
-- Sessions, cost, turns, and tool calls per project.
+- Sessions, cost, turns, and tool calls per project, named after the session's working directory. A session in a worktree under `<repo>/.claude/worktrees/` counts toward `<repo>`.
 - Cross-reference with git `by_repo` — which repos get the most AI assistance relative to their commit volume? A repo with many commits but few Claude sessions is "manual" work; one with few commits but many sessions is "AI-assisted" or exploratory.
 
 #### By project hour (`by_project_hour`)

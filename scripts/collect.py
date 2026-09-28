@@ -88,6 +88,7 @@ CONFIG_DIRECTORY_VARIABLE = 'CLAUDE_CONFIG_DIR'
 PROJECTS_DIRECTORY = 'projects'
 SUBAGENTS_DIRECTORY = 'subagents'
 SESSION_FILE_PATTERN = '*.jsonl'
+WORKTREE_SEGMENT = re.compile(r'/\.claude/worktrees/[^/]+')
 
 USER_ENTRY = 'user'
 ASSISTANT_ENTRY = 'assistant'
@@ -603,12 +604,16 @@ def finish_session(session: dict[str, Any], title: str) -> dict[str, Any]:
         'tool_calls': session['tool_calls'],
         'tool_count': len(session['tool_calls']),
         'skills_used': session['skills_used'],
-        'project': Path(session['cwd']).name if session['cwd'] else '',
+        'project': project_name(session['cwd']),
         'git_branches': sorted(session['git_branches']),
         'title': title,
         'duration_minutes': round((session['last_timestamp'] - created).total_seconds() / 60, 1),
         'source': session_source(session),
     }
+
+
+def project_name(directory: str) -> str:
+    return Path(WORKTREE_SEGMENT.sub('', directory)).name if directory else ''
 
 
 def session_source(session: dict[str, Any]) -> str:

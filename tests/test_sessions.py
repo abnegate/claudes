@@ -407,6 +407,22 @@ class SessionsTest(unittest.TestCase):
         busiest = sorted(project for project in sessions_per_project if project != 'p00')
         self.assertEqual(sorted(self.analyze(self.default_profile)['by_project_hour']), busiest)
 
+    def test_worktree_sessions_belong_to_their_repository(self) -> None:
+        directories = (
+            '/u/Local/zone/.claude/worktrees/brave-fox-1a2b',
+            '/u/Local/zone/.claude/worktrees/calm-owl-3c4d/src',
+            '/u/Local/zone',
+        )
+        for number, directory in enumerate(directories):
+            session_id = f'S4{number}'
+            self.write(self.default_profile, PROJECT, session_id, [self.user(session_id, f'u4{number}', cwd=directory)])
+        sessions = self.collect_sessions(self.default_profile)
+        self.assertEqual({session_id: session['project'] for session_id, session in sessions.items()}, {
+            'S40': 'zone',
+            'S41': 'src',
+            'S42': 'zone',
+        })
+
     def test_session_keeps_existing_keys(self) -> None:
         self.write(self.default_profile, PROJECT, 'S14', [self.user('S14', 'u1'), self.assistant('S14', 'a1')])
         session = self.collect_sessions(self.default_profile)['S14']
