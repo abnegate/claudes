@@ -31,7 +31,7 @@ Confirm the working tree is clean after Step 1.
 **Agent 2 — Commit History**:
 ```bash
 git log main..HEAD --oneline
-git log main..HEAD --format="%h %s%n%b"
+git log main..HEAD --format='%h %s%n%b'
 ```
 Capture all commits that will be in the PR with their full messages.
 
@@ -62,7 +62,7 @@ Determine whether the branch has diverged from origin/main.
 Using the commit history and diff from Step 2, produce:
 - A concise summary (2-4 bullet points) of what changed and why
 - A detailed changes list grouped by area (backend, frontend, tests, config)
-- Appropriate PR title in conventional commit style if `$ARGUMENTS` was not provided
+- A PR title in the PR Title Format below if `$ARGUMENTS` was not provided
 - Test plan based on what was modified
 
 ## Step 4: Push and Create PR
@@ -96,10 +96,12 @@ EOF
 
 ## PR Title Format
 
-Use conventional commit style:
-- `feat: Add new feature`
-- `fix: Resolve bug in X`
-- `refactor: Improve Y structure`
+Use the commit subject format from `skills:commit-all`, `type(scope): subject`, with the type and scope of the PR's main change:
+- `feat(preferences): add user preferences endpoint`
+- `fix(auth): handle expired sessions`
+- `refactor(billing): extract invoice totals`
+- `feat(api)!: remove v1 routes` (`!` marks a breaking change)
+- `chore: update dependencies` (repo-wide, so no scope)
 
 ## If `$ARGUMENTS` Provided
 
@@ -112,6 +114,6 @@ Return the PR URL when complete.
 ## Checklist Before PR
 
 - [ ] All tests pass
-- [ ] Code is formatted and linted (PHP: `composer lint`, Kotlin: ktlint, Rust: `cargo fmt` + `cargo clippy -D warnings`, JS/TS: Prettier)
+- [ ] Code is formatted and linted (PHP: `composer lint`, Kotlin: ktlint, Rust: `cargo fmt` + `cargo clippy -- -D warnings`, JS/TS: Prettier)
 - [ ] No secrets in code
 - [ ] SDK regenerated if API changed

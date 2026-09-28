@@ -73,7 +73,7 @@ Launch **two agents in parallel** to reproduce and search for root cause simulta
   git log --oneline -20 -- path/to/affected/code
   ```
 - Read the stack trace and trace back through call sites
-- Identify candidate commits with `git log --all --oneline --since="3 days ago"`
+- Identify candidate commits with `git log --all --oneline --since='3 days ago'`
 - Use `git diff` on suspect commits to find the breaking change
 - Write findings to a temporary summary
 
@@ -124,15 +124,15 @@ Wait for both agents. If either agent found issues:
 Delegate to the `skills:commit` command:
 
 ```
-Skill(skill="skills:commit", args="(hotfix): [brief description]")
+Skill(skill="skills:commit", args="fix(<scope>): <brief description>")
 ```
 
 ### 4.2 Open the PR
 
-Delegate to the `skills:pr` command with a hotfix title:
+Delegate to the `skills:pr` command with a `fix(<scope>)` title:
 
 ```
-Skill(skill="skills:pr", args="(hotfix): [description]")
+Skill(skill="skills:pr", args="fix(<scope>): <description>")
 ```
 
 The `skills:pr` command will push the branch and open the PR. After it returns, update the PR body with hotfix-specific context (issue / root cause / fix / rollback) using `gh pr edit`:

@@ -11,10 +11,18 @@ Create a git commit following project conventions.
 ## Commit Message Format
 
 ```
-(<type>): <description>
+<type>(<scope>): <subject>
+
+<body>
 ```
 
-No body, no co-authors.
+- **type**: one of the Types below.
+- **scope** (optional): the area touched, in lowercase kebab-case, e.g. `fix(auth): handle expired sessions`. Omit it for repo-wide changes.
+- **`!`** right before the colon marks a breaking change: `feat(api)!: remove v1 routes`.
+- **subject**: lowercase imperative, no trailing period.
+- **body** (optional): one short paragraph with only the *why* (rationale, tradeoffs, the reason behind a non-obvious value). Never restate what changed. When the subject says enough, leave out the body and the blank line before it.
+- Keep every line within 72 characters.
+- No co-authors: no `Co-Authored-By` trailer.
 
 ## Types
 
@@ -23,29 +31,30 @@ No body, no co-authors.
 | `feat` | New features |
 | `fix` | Bug fixes |
 | `refactor` | Code restructuring |
+| `chore` | Maintenance |
 | `docs` | Documentation |
 | `test` | Tests |
-| `chore` | Maintenance |
-| `perf` | Performance |
 | `style` | Formatting |
+| `perf` | Performance |
 
 ## Execution Steps
 
 1. Run `git status` to see changes (never use `-uall`)
 2. Run `git diff --staged` and `git diff` to understand changes
-3. Run `git log --oneline -5` to see recent commit style
+3. Run `git log --oneline -5` to see which scopes recent commits use (never copy the legacy `(type): subject` form)
 4. If `$ARGUMENTS` provided, use as commit message
 5. If no `$ARGUMENTS`:
    - Analyze changes
+   - Pick type and scope from the changes
    - Generate appropriate message
-   - Use type prefix based on changes
 6. Stage relevant files with `git add`
-7. Create commit with HEREDOC format:
+7. Create commit with HEREDOC format, leaving out the blank line and `<body>` when there is no body:
    ```bash
-   git commit -m "$(cat <<'EOF'
-   (type): description
+   git commit -F - <<'EOF'
+   <type>(<scope>): <subject>
+
+   <body>
    EOF
-   )"
    ```
 8. Run `git status` to verify
 
@@ -59,9 +68,10 @@ No body, no co-authors.
 ## Example
 
 ```bash
-git add server/http/src/main/kotlin/
-git commit -m "$(cat <<'EOF'
-(feat): Add user preferences endpoint
+git add src/preferences/
+git commit -F - <<'EOF'
+feat(preferences): add user preferences endpoint
+
+Preferences lived in local storage, so every new device started empty.
 EOF
-)"
 ```
