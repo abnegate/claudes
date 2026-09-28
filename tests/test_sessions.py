@@ -55,6 +55,7 @@ PARTIAL_USAGE = {'input_tokens': MILLION, 'output_tokens': 1}
 FINAL_FAST_USAGE = {'input_tokens': MILLION, 'output_tokens': MILLION, 'speed': 'fast'}
 FINAL_FAST_COST = 48.0
 PADDING = 'x' * 2000
+TOOL_RESULT = [{'type': 'tool_result', 'tool_use_id': 't1', 'content': 'ok'}]
 SESSION_KEYS = frozenset({
     'id', 'created', 'date', 'hour', 'weekday', 'week', 'month', 'model', 'models', 'cost', 'cost_by_model',
     'unpriced_models', 'turns', 'user_messages', 'assistant_messages', 'tool_calls', 'tool_count', 'skills_used',
@@ -87,7 +88,7 @@ class SessionsTest(unittest.TestCase):
         self,
         session_id: str,
         uuid: str,
-        content: str = 'go',
+        content: object = 'go',
         timestamp: str = TIMESTAMP,
         cwd: str = WORKING_DIRECTORY,
     ) -> dict[str, Any]:
@@ -422,6 +423,62 @@ class SessionsTest(unittest.TestCase):
             'S41': 'src',
             'S42': 'zone',
         })
+
+    def test_turns_count_prompts_not_tool_results_or_meta_entries(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S50', [
+            self.user('S50', 'u1', 'fix the login bug'),
+            self.assistant('S50', 'a1'),
+            self.user('S50', 'u2', TOOL_RESULT),
+            self.user('S50', 'u3', TOOL_RESULT),
+            self.user('S50', 'u4', TOOL_RESULT),
+            {**self.user('S50', 'u5', 'caveat'), 'isMeta': True},
+            {**self.user('S50', 'u6', 'summary of the conversation'), 'isCompactSummary': True},
+            self.user('S50', 'u7', [{'type': 'text', 'text': 'and this screenshot?'}, {'type': 'image', 'source': {}}]),
+        ])
+        session = self.collect_sessions(self.default_profile)['S50']
+        self.assertEqual(session['user_messages'], 7)
+        self.assertEqual(session['turns'], 2)
+
+    def test_turns_skip_harness_messages_and_subagent_prompts(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S51', [
+            self.user('S51', 'u1', '<command-name>/review</command-name>'),
+            self.user('S51', 'u2', '<task-notification>done</task-notification>'),
+            self.user('S51', 'u3', '<local-command-stdout>ok</local-command-stdout>'),
+            self.user('S51', 'u4', '<ci-monitor-event>green</ci-monitor-event>'),
+            self.user('S51', 'u5', '<bash-stdout>ok</bash-stdout><bash-stderr></bash-stderr>'),
+            self.user('S51', 'u6', [{'type': 'text', 'text': '[Request interrupted by user]'}]),
+        ])
+        self.write(self.default_profile, f'{PROJECT}/S51/subagents', 'agent-1', [self.user('S51', 'u7', 'review the diff')])
+        session = self.collect_sessions(self.default_profile)['S51']
+        self.assertEqual(session['user_messages'], 7)
+        self.assertEqual(session['turns'], 1)
+
+    def test_active_time_caps_idle_gaps_and_counts_subagent_work(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S52', [
+            self.user('S52', 'u1', timestamp='2026-09-01T10:00:00.000Z'),
+            self.assistant('S52', 'a1', timestamp='2026-09-01T10:01:00.000Z'),
+            self.user('S52', 'u2', timestamp='2026-09-01T12:01:00.000Z'),
+        ])
+        self.write(self.default_profile, PROJECT, 'S53', [
+            self.user('S53', 'u3', timestamp='2026-09-01T14:00:00.000Z'),
+            self.assistant('S53', 'a3', timestamp='2026-09-01T14:40:00.000Z'),
+        ])
+        self.write(self.default_profile, f'{PROJECT}/S53/subagents', 'agent-1', [
+            self.assistant('S53', f'a4{minute}', timestamp=f'2026-09-01T14:{minute}:00.000Z') for minute in (10, 20, 30)
+        ])
+        sessions = self.collect_sessions(self.default_profile)
+        self.assertEqual(sessions['S52']['duration_minutes'], 16.0)
+        self.assertEqual(sessions['S53']['duration_minutes'], 40.0)
+
+    def test_total_hours_count_parallel_sessions_once(self) -> None:
+        for session_id in ('S54', 'S55'):
+            self.write(self.default_profile, PROJECT, session_id, [
+                self.user(session_id, f'{session_id}-{minute}', timestamp=f'2026-09-01T10:{minute:02d}:00.000Z')
+                for minute in range(0, 60, 5)
+            ] + [self.user(session_id, f'{session_id}-end', timestamp='2026-09-01T11:00:00.000Z')])
+        duration = self.analyze(self.default_profile)['duration']
+        self.assertEqual(duration['max_minutes'], 60.0)
+        self.assertEqual(duration['total_hours'], 1.0)
 
     def test_session_keeps_existing_keys(self) -> None:
         self.write(self.default_profile, PROJECT, 'S14', [self.user('S14', 'u1'), self.assistant('S14', 'a1')])

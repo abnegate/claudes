@@ -17,6 +17,7 @@ import subprocess
 import sys
 from collections import Counter
 from collections import defaultdict
+from collections.abc import Iterable
 from collections.abc import Iterator
 from collections.abc import Mapping
 from collections.abc import Sequence
@@ -96,6 +97,12 @@ MESSAGE_ENTRIES = (USER_ENTRY, ASSISTANT_ENTRY)
 TITLE_ENTRY = 'custom-title'
 RELEVANT_ENTRY = re.compile(rb'"type"\s*:\s*"(?:user|assistant|custom-title)"')
 TOOL_USE_BLOCK = 'tool_use'
+TOOL_RESULT_BLOCK = 'tool_result'
+TEXT_BLOCK = 'text'
+META_FLAG = 'isMeta'
+COMPACT_SUMMARY_FLAG = 'isCompactSummary'
+HARNESS_PREFIXES = ('<task-notification>', '<local-command-stdout>', '<ci-monitor-event>', '<bash-stdout>', '[Request interrupted')
+ACTIVE_GAP_CAP = timedelta(minutes=15)
 SKILL_TOOL = 'Skill'
 MAIN_AND_SUBAGENT_SOURCE = 'main+subagent'
 SUBAGENT_ONLY_SOURCE = 'subagent-only'
@@ -495,7 +502,9 @@ def start_session(session_id: str, timestamp: datetime) -> dict[str, Any]:
         'first_timestamp': timestamp,
         'last_timestamp': timestamp,
         'user_messages': 0,
+        'prompts': 0,
         'assistant_messages': 0,
+        'activity': [],
         'tool_calls': [],
         'skills_used': [],
         'models': set(),
@@ -518,6 +527,7 @@ def record_entry(
 ) -> None:
     session['first_timestamp'] = min(session['first_timestamp'], timestamp)
     session['last_timestamp'] = max(session['last_timestamp'], timestamp)
+    record_activity(session['activity'], timestamp)
     if is_subagent:
         session['has_subagent_data'] = True
     else:
@@ -528,12 +538,52 @@ def record_entry(
         session['git_branches'].add(entry['gitBranch'])
     if entry.get('type') == USER_ENTRY:
         session['user_messages'] += 1
+        if not is_subagent and is_prompt(entry):
+            session['prompts'] += 1
         return
     session['assistant_messages'] += 1
     message = entry.get('message')
     if isinstance(message, dict):
         record_usage(session, entry, message, responses)
         record_tools(session, message)
+
+
+def record_activity(activity: list[list[datetime]], timestamp: datetime) -> None:
+    if activity and activity[-1][0] <= timestamp <= activity[-1][1]:
+        activity[-1][1] = max(activity[-1][1], timestamp + ACTIVE_GAP_CAP)
+    else:
+        activity.append([timestamp, timestamp + ACTIVE_GAP_CAP])
+
+
+def merge_intervals(intervals: Iterable[Sequence[datetime]]) -> list[tuple[datetime, datetime]]:
+    merged: list[tuple[datetime, datetime]] = []
+    for start, end in sorted((interval[0], interval[1]) for interval in intervals):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def active_intervals(activity: list[list[datetime]], last: datetime) -> list[tuple[datetime, datetime]]:
+    return [(start, min(end, last)) for start, end in merge_intervals(activity) if start < last]
+
+
+def active_minutes(intervals: Iterable[tuple[datetime, datetime]]) -> float:
+    return sum((end - start).total_seconds() for start, end in intervals) / 60
+
+
+def is_prompt(entry: Mapping[str, Any]) -> bool:
+    if entry.get(META_FLAG) or entry.get(COMPACT_SUMMARY_FLAG):
+        return False
+    message = entry.get('message')
+    content = message.get('content') if isinstance(message, Mapping) else None
+    if isinstance(content, list):
+        blocks = [block for block in content if isinstance(block, Mapping)]
+        if any(block.get('type') == TOOL_RESULT_BLOCK for block in blocks):
+            return False
+        content = next((block.get(TEXT_BLOCK) for block in blocks if block.get('type') == TEXT_BLOCK), '')
+    return isinstance(content, str) and not content.lstrip().startswith(HARNESS_PREFIXES)
 
 
 def record_usage(
@@ -583,6 +633,7 @@ def record_tools(session: dict[str, Any], message: Mapping[str, Any]) -> None:
 
 def finish_session(session: dict[str, Any], title: str) -> dict[str, Any]:
     created: datetime = session['first_timestamp']
+    active = active_intervals(session['activity'], session['last_timestamp'])
     model_counts: Counter[str] = session['model_counts']
     cost_by_model = dict(session['cost_by_model'])
     return {
@@ -598,7 +649,7 @@ def finish_session(session: dict[str, Any], title: str) -> dict[str, Any]:
         'cost': round(sum(cost_by_model.values()), 4),
         'cost_by_model': cost_by_model,
         'unpriced_models': dict(session['unpriced_models']),
-        'turns': session['user_messages'],
+        'turns': session['prompts'],
         'user_messages': session['user_messages'],
         'assistant_messages': session['assistant_messages'],
         'tool_calls': session['tool_calls'],
@@ -607,7 +658,8 @@ def finish_session(session: dict[str, Any], title: str) -> dict[str, Any]:
         'project': project_name(session['cwd']),
         'git_branches': sorted(session['git_branches']),
         'title': title,
-        'duration_minutes': round((session['last_timestamp'] - created).total_seconds() / 60, 1),
+        'duration_minutes': round(active_minutes(active), 1),
+        'active_intervals': active,
         'source': session_source(session),
     }
 
@@ -689,7 +741,9 @@ def analyze_claude_sessions(sessions: list[dict[str, Any]]) -> dict[str, Any] | 
             'median_minutes': round(durations_sorted[len(durations_sorted) // 2], 1),
             'average_minutes': round(sum(durations) / len(durations), 1),
             'max_minutes': round(max(durations), 1),
-            'total_hours': round(sum(durations) / 60, 1),
+            'total_hours': round(active_minutes(merge_intervals(
+                interval for session in sessions for interval in session['active_intervals']
+            )) / 60, 1),
         }
 
     cost_by_week: defaultdict[str, float] = defaultdict(float)
