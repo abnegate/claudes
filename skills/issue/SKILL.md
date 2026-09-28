@@ -85,12 +85,12 @@ After the cycle completes, prepare the PR in parallel with a final verification:
 
 ### 2.1 Create PR Linked to Issue
 
-Title the PR `<type>(<scope>): <Linear title>`. The type is `fix` when the issue carries a bug label and `feat` otherwise; the scope names the area touched and is omitted for repo-wide changes; `<Linear title>` is the issue's title text from Phase 0, not the branch slug.
+Title the PR `<type>(<scope>): <subject>`. The type is `fix` when the issue carries a bug label and `feat` otherwise; the scope names the area touched and is omitted for repo-wide changes; `<subject>` restates the Linear title from Phase 0 as a lowercase imperative (Linear "Login fails for expired sessions" → `fix(auth): handle expired sessions`).
 
 Using the PR content prepared by Agent 2 (adjusted if fixes were needed):
 
 ```bash
-gh pr create --title '<type>(<scope>): <Linear title>' --body-file - <<'EOF'
+gh pr create --title '<type>(<scope>): <subject>' --body-file - <<'EOF'
 ## Summary
 Implements $ARGUMENTS
 
