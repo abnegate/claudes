@@ -40,6 +40,10 @@ HAIKU_KEY = 'claude-haiku-4-5'
 UNKNOWN_MODEL = 'gpt-4'
 SYNTHETIC_MODEL = '<synthetic>'
 INPUT_USAGE = {'input_tokens': MILLION}
+PARTIAL_USAGE = {'input_tokens': MILLION, 'output_tokens': 1}
+FINAL_FAST_USAGE = {'input_tokens': MILLION, 'output_tokens': MILLION, 'speed': 'fast'}
+FINAL_FAST_COST = 48.0
+PADDING = 'x' * 2000
 SESSION_KEYS = frozenset({
     'id', 'created', 'date', 'hour', 'weekday', 'week', 'month', 'model', 'models', 'cost', 'cost_by_model',
     'unpriced_models', 'turns', 'user_messages', 'assistant_messages', 'tool_calls', 'tool_count', 'skills_used',
@@ -61,14 +65,14 @@ class SessionsTest(unittest.TestCase):
         self.default_profile = self.home / '.claude'
         self.work_profile = self.home / '.claude-work'
 
-    def user(self, session_id: str, uuid: str) -> dict[str, Any]:
+    def user(self, session_id: str, uuid: str, content: str = 'go') -> dict[str, Any]:
         return {
             'type': USER,
             'uuid': uuid,
             'sessionId': session_id,
             'timestamp': TIMESTAMP,
             'cwd': WORKING_DIRECTORY,
-            'message': {'role': USER, 'content': 'go'},
+            'message': {'role': USER, 'content': content},
         }
 
     def assistant(
@@ -76,7 +80,8 @@ class SessionsTest(unittest.TestCase):
         session_id: str,
         uuid: str,
         model: str = OPUS,
-        usage: Mapping[str, int] = INPUT_USAGE,
+        usage: Mapping[str, object] = INPUT_USAGE,
+        message_id: str | None = None,
     ) -> dict[str, Any]:
         return {
             'type': ASSISTANT,
@@ -85,7 +90,7 @@ class SessionsTest(unittest.TestCase):
             'timestamp': TIMESTAMP,
             'cwd': WORKING_DIRECTORY,
             'message': {
-                'id': f'message-{uuid}',
+                'id': message_id or f'message-{uuid}',
                 'role': ASSISTANT,
                 'model': model,
                 'usage': dict(usage),
@@ -255,13 +260,32 @@ class SessionsTest(unittest.TestCase):
         self.assertAlmostEqual(session['cost_by_model'][OPUS], 4.0, places=PLACES)
         self.assertEqual(session['unpriced_models'], {})
 
-    def test_content_blocks_of_one_response_are_priced_once(self) -> None:
-        response = self.assistant('S13', 'a1')
-        next_block = {**response, 'uuid': 'a2'}
-        self.write(self.default_profile, PROJECT, 'S13', [self.user('S13', 'u1'), response, next_block])
+    def test_response_is_priced_once_from_its_final_usage_entry(self) -> None:
+        self.write(self.default_profile, PROJECT, 'S13', [
+            self.user('S13', 'u1'),
+            self.assistant('S13', 'a1', usage=PARTIAL_USAGE, message_id='m1'),
+            self.assistant('S13', 'a2', usage=FINAL_FAST_USAGE, message_id='m1'),
+        ])
         session = self.collect_sessions(self.default_profile)['S13']
         self.assertEqual(session['assistant_messages'], 2)
-        self.assertAlmostEqual(session['cost_by_model'][OPUS], 4.0, places=PLACES)
+        self.assertAlmostEqual(session['cost_by_model'][OPUS], FINAL_FAST_COST, places=PLACES)
+
+    def test_final_usage_entry_from_a_smaller_copy_wins(self) -> None:
+        partial = self.assistant('S20', 'a1', usage=PARTIAL_USAGE, message_id='m2')
+        larger = self.write(self.default_profile, PROJECT, 'S20', [
+            self.user('S20', 'u1'),
+            partial,
+            self.user('S20', 'u2', PADDING),
+        ])
+        smaller = self.write(self.work_profile, PROJECT, 'S20', [
+            self.user('S20', 'u1'),
+            partial,
+            self.assistant('S20', 'a2', usage=FINAL_FAST_USAGE, message_id='m2'),
+        ])
+        self.assertGreater(larger.stat().st_size, smaller.stat().st_size, 'the partial-only copy must be the largest')
+        session = self.collect_sessions(self.default_profile, self.work_profile)['S20']
+        self.assertEqual(session['assistant_messages'], 2)
+        self.assertAlmostEqual(session['cost_by_model'][OPUS], FINAL_FAST_COST, places=PLACES)
 
     def test_session_keeps_existing_keys(self) -> None:
         self.write(self.default_profile, PROJECT, 'S14', [self.user('S14', 'u1'), self.assistant('S14', 'a1')])

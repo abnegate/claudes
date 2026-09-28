@@ -87,7 +87,7 @@ The JSON output has two top-level keys: `git` and `claude`. Use **both** to buil
 Costs use the list prices from the pricing page (`PRICING_SOURCE` in the script):
 - Cache writes are billed at the 5-minute or 1-hour rate from the `cache_creation` breakdown; without a breakdown, all `cache_creation_input_tokens` are billed at the 5-minute rate.
 - Fast mode (`usage.speed` is `fast`) uses the fast rates for Opus 5.5, Opus 5 and Opus 4.8. US-only inference (`usage.inference_geo` is `us`) costs 1.1×.
-- Claude Code copies one API response's full `usage` onto every content-block entry, so cost is computed once per `message.id` (the entry's `uuid` when there is none), while message counts stay per entry.
+- Claude Code writes one entry per content block of an API response, and only the last one carries the final `usage`; earlier ones hold a running output count and no `speed`. So each response is priced once per `message.id` (the entry's `uuid` when there is none), from its entry with the most output tokens (the later one on a tie) across every copy read, while message counts stay per entry.
 - `cost_by_model` maps each canonical model (such as `claude-opus-5-5`, with `[1m]` and date suffixes stripped) to USD, most expensive first.
 - `unpriced_models` maps each model without a known price, by raw name, to its assistant-message count. Such models are never priced as another model, so a non-empty map means the total understates spend — say so.
 - `<synthetic>` costs nothing and appears in neither.

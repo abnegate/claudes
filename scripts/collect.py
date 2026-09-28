@@ -374,7 +374,7 @@ def collect_claude_sessions(since_date: str, profiles: Sequence[Path]) -> list[d
     sessions: dict[str, dict[str, Any]] = {}
     titles: dict[str, str] = {}
     seen_entries: set[str] = set()
-    seen_messages: set[str] = set()
+    responses: dict[str, tuple[str, str, float, float]] = {}
     for relative, paths in find_session_files(profiles, since):
         is_subagent = SUBAGENTS_DIRECTORY in relative.parts
         path_session_id = relative.parts[1] if len(relative.parts) > 2 else relative.stem
@@ -397,9 +397,11 @@ def collect_claude_sessions(since_date: str, profiles: Sequence[Path]) -> list[d
                 session = sessions.get(session_id)
                 if session is None:
                     session = sessions[session_id] = start_session(session_id, timestamp)
-                record_entry(session, entry, timestamp, is_subagent, seen_messages)
+                record_entry(session, entry, timestamp, is_subagent, responses)
             for session_id, title in copy_titles.items():
                 titles.setdefault(session_id, title)
+    for session_id, model, _, cost in responses.values():
+        sessions[session_id]['cost_by_model'][model] += cost
     finished = [finish_session(session, titles.get(session['id'], '')) for session in sessions.values()]
     return sorted(finished, key=lambda session: session['created'])
 
@@ -471,7 +473,7 @@ def record_entry(
     entry: Mapping[str, Any],
     timestamp: datetime,
     is_subagent: bool,
-    seen_messages: set[str],
+    responses: dict[str, tuple[str, str, float, float]],
 ) -> None:
     session['first_timestamp'] = min(session['first_timestamp'], timestamp)
     session['last_timestamp'] = max(session['last_timestamp'], timestamp)
@@ -489,7 +491,7 @@ def record_entry(
     session['assistant_messages'] += 1
     message = entry.get('message')
     if isinstance(message, dict):
-        record_usage(session, entry, message, seen_messages)
+        record_usage(session, entry, message, responses)
         record_tools(session, message)
 
 
@@ -497,7 +499,7 @@ def record_usage(
     session: dict[str, Any],
     entry: Mapping[str, Any],
     message: Mapping[str, Any],
-    seen_messages: set[str],
+    responses: dict[str, tuple[str, str, float, float]],
 ) -> None:
     model = message.get('model')
     if not isinstance(model, str) or not model:
@@ -511,12 +513,17 @@ def record_usage(
         session['unpriced_models'][model] += 1
         return
     usage = message.get('usage')
-    message_key = message.get('id') or entry.get('uuid')
-    if not isinstance(usage, Mapping) or message_key in seen_messages:
+    if not isinstance(usage, Mapping):
         return
-    if message_key:
-        seen_messages.add(message_key)
-    session['cost_by_model'][canonical] += estimate_cost(model, usage) or 0.0
+    cost = estimate_cost(model, usage) or 0.0
+    response_key = message.get('id') or entry.get('uuid')
+    if not response_key:
+        session['cost_by_model'][canonical] += cost
+        return
+    output_tokens = token_count(usage, 'output_tokens')
+    previous = responses.get(response_key)
+    if previous is None or output_tokens >= previous[2]:
+        responses[response_key] = (session['id'], canonical, output_tokens, cost)
 
 
 def record_tools(session: dict[str, Any], message: Mapping[str, Any]) -> None:
