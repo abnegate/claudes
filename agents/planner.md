@@ -43,7 +43,7 @@ Your output MUST follow this structure exactly:
 - Acceptance criteria: [specific checks]
 - Owned areas: [paths only this workstream changes]
 
-## Cross-workstream wiring
+## Cross-workstream wiring (only with workstreams)
 - [work that joins the workstreams once the top level has integrated the `ws-*` branches]
 
 ## Subtasks
