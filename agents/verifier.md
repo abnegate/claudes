@@ -37,9 +37,9 @@ When given an execution plan, evaluate it against these criteria:
 - Is the nesting decision justified? A multi-repo task always nests, one workstream per repo. Otherwise `## Workstreams` needs 2 or more workstreams with disjoint ownership that couple only at final wiring and each need their own cycle (3 or more subtasks, or several waves), or a top-level context that would overflow or independent workstreams that would otherwise wait on each other's wave barriers. Anything less runs as one cycle from the top level.
 - Is the depth budget feasible? Every agent expected to spawn must sit below MAX (default 3, `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`). In a nested run, workstream conductors are at depth 1, stage agents at 2 and helpers at 3 (leaf: no `Agent` tool), so a second conductor level never fits MAX 3.
 - Are waves within the concurrency budget, or flagged for budget-sized batches? The budget counts every running descendant, helpers included: N (default 20, `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`) for a top-level conductor without workstreams, and `floor((N - K) / K)` for each of K parallel workstream conductors.
-- Do architect prompts carry the BASE protocol (the consolidation skill's Worktree BASE protocol): BASE and the first commands, the branch and absolute worktree path in explicit worktree mode, scoped commits without push, and the report fields?
+- Does every implementation subtask branch from its wave's BASE, and does anything that needs another subtask's output sit in a later wave?
 - Is workstream ownership disjoint, or is every shared path covered by the file overlap map?
-- Do workstream conductor prompts say never to end the turn while children run, and to finish with `SubagentHandback` and the Workstream report?
+- Does each workstream carry a scope, a repo, its `ws-<workstream>` branch and specific acceptance criteria for its Workstream report?
 
 ### Output format (pre-verification)
 
