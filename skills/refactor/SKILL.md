@@ -166,7 +166,7 @@ Continue with next step until refactoring complete.
 
 ## Phase 4: Review
 
-Launch a **reviewer** agent (`subagent_type: "reviewer"`) to review the full diff (`git diff "$BASE"...HEAD`, with the BASE recorded at the start of Phase 3). Focus: behavior preservation, no accidental API changes, code quality improvement. Fix any critical/major issues found.
+Launch a **reviewer** agent (`subagent_type: "reviewer"`) to review the full diff (`git diff <BASE>...HEAD`, with the BASE SHA recorded at the start of Phase 3). Focus: behavior preservation, no accidental API changes, code quality improvement. Fix any critical/major issues found.
 
 ## Phase 5: Final Verification
 

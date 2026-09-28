@@ -23,9 +23,10 @@ Launch **four agents** in parallel to gather all state simultaneously:
 git status
 git branch --show-current
 git stash list
-BASE=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
-echo "BASE=$BASE"
-git log $BASE..HEAD --oneline 2>/dev/null || git log --oneline -10
+BASE_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+echo "BASE_BRANCH=$BASE_BRANCH"
+git log "$BASE_BRANCH"..HEAD --oneline 2>/dev/null || git log --oneline -10
+git diff "$BASE_BRANCH"...HEAD --stat 2>/dev/null
 ```
 
 **Agent 2 — Uncommitted Work:**
@@ -39,20 +40,17 @@ git diff --cached
 **Agent 3 — Recent Changes:**
 ```bash
 git log --oneline -10 --all
-git diff $BASE...HEAD --name-only 2>/dev/null
-git diff $BASE...HEAD --stat 2>/dev/null
 ```
 
 **Agent 4 — Failing State:**
 
 Run the project's test/build/lint commands to find what's currently broken:
 ```bash
-# Auto-detect and run
-if [ -f "composer.json" ]; then composer test 2>&1 | tail -30; fi
-if [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; then ./gradlew test 2>&1 | tail -30; fi
-if [ -f "package.json" ]; then npm test 2>&1 | tail -30; fi
-if [ -f "Cargo.toml" ]; then cargo test 2>&1 | tail -30; fi
-if [ -f "go.mod" ]; then go test ./... 2>&1 | tail -30; fi
+if [ -f 'composer.json' ]; then composer test 2>&1 | tail -30; fi
+if [ -f 'build.gradle' ] || [ -f 'build.gradle.kts' ]; then ./gradlew test 2>&1 | tail -30; fi
+if [ -f 'package.json' ]; then npm test 2>&1 | tail -30; fi
+if [ -f 'Cargo.toml' ]; then cargo test 2>&1 | tail -30; fi
+if [ -f 'go.mod' ]; then go test ./... 2>&1 | tail -30; fi
 ```
 
 ## Phase 2: Diagnose What's Unfinished

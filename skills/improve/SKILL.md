@@ -22,26 +22,17 @@ Parse cycles from arguments:
 
 For each cycle (1 to N):
 
-### Step 1: Gather Context (Parallel)
+### Step 1: Gather Context
 
-Launch these agents in parallel to collect all inputs simultaneously:
+Collect the base branch, the commit history, the changed files and the full diff in one Bash call:
 
-**Agent 1 — Base Branch & Changed Files:**
 ```bash
-BASE=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
-echo "BASE=$BASE"
-git diff $BASE...HEAD --name-only
-git diff $BASE...HEAD --stat
-```
-
-**Agent 2 — Full Diff:**
-```bash
-git diff $BASE...HEAD
-```
-
-**Agent 3 — Commit History:**
-```bash
-git log $BASE..HEAD --oneline
+BASE_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+: "${BASE_BRANCH:?no base branch found: ask the user which branch to compare against}"
+echo "BASE_BRANCH=$BASE_BRANCH"
+git log --oneline "$BASE_BRANCH"..HEAD
+git diff --stat "$BASE_BRANCH"...HEAD
+git diff "$BASE_BRANCH"...HEAD
 ```
 
 ### Step 2: Parallel Review (6 dimensions)

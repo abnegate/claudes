@@ -9,27 +9,17 @@ Perform a thorough code review of the current branch against the base branch usi
 
 ## Workflow
 
-### 1. Gather Context (Parallel)
+### 1. Gather Context
 
-Launch these in parallel:
+Detect the base branch and collect the commit history and the diff in one Bash call:
 
-**Agent 1 — Branch & Diff Info:**
 ```bash
-CURRENT=$(git branch --show-current)
-BASE="main"
-echo "Reviewing $CURRENT against $BASE"
-git diff $BASE...HEAD --name-only
-git diff $BASE...HEAD --stat
-```
-
-**Agent 2 — Full Diff:**
-```bash
-git diff $BASE...HEAD
-```
-
-**Agent 3 — Commit History:**
-```bash
-git log $BASE..HEAD --oneline
+BASE_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+: "${BASE_BRANCH:?no base branch found: ask the user which branch to review against}"
+echo "Reviewing $(git branch --show-current) against $BASE_BRANCH"
+git log --oneline "$BASE_BRANCH"..HEAD
+git diff --stat "$BASE_BRANCH"...HEAD
+git diff "$BASE_BRANCH"...HEAD
 ```
 
 ### 2. Parallel Code Review

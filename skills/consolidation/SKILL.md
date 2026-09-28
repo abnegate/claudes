@@ -160,9 +160,9 @@ A workstream conductor's final action is `SubagentHandback({message: <Workstream
 
 **BASE** is the SHA a wave branches from: the integration branch HEAD at wave start. The **integration branch/worktree** is the branch the wave's work lands on, and its checkout. Worktrees come from **isolation mode** (`isolation: "worktree"`; needs the session cwd inside the repo and is not used inside workstreams) or **explicit worktree mode** (`git -C <repo> worktree add -b <branch> <abs path> <BASE>`; always available). Branch names stay flat, because `ws-a` and `ws-a/x` cannot coexist as refs: `task-<subtask>` in top-level explicit mode, `ws-<workstream>` for a workstream integration branch, `ws-<workstream>-<subtask>` for an architect branch inside a workstream.
 
-1. The conductor records `BASE=$(git -C <integration worktree> rev-parse HEAD)` before each wave. Uncommitted changes are not part of BASE.
-2. In isolation mode (session cwd inside the repo), every worktree agent first runs `git status --porcelain` (must be empty), then `git reset --hard "$BASE"`, then confirms `git rev-parse HEAD` = BASE.
-3. In explicit mode, the agent (or the conductor, as git bookkeeping) runs `git -C <repo> worktree add -b <branch> <abs path> "$BASE"`. The agent works only in that path.
+1. Before each wave, the conductor runs `git -C <integration worktree> rev-parse HEAD` and writes the printed SHA itself wherever `<BASE>` appears in prompts and commands: a shell variable dies with its Bash call. Uncommitted changes are not part of BASE.
+2. In isolation mode (session cwd inside the repo), every worktree agent first runs `git status --porcelain` (must be empty), then `git reset --hard <BASE>`, then confirms `git rev-parse HEAD` = BASE.
+3. In explicit mode, the agent (or the conductor, as git bookkeeping) runs `git -C <repo> worktree add -b <branch> <abs path> <BASE>`. The agent works only in that path.
 4. Last step: commit on its branch (scoped format), do not push, and report the branch, absolute worktree path, `git rev-parse HEAD`, `git log --oneline BASE..HEAD`, files changed, and checks run.
 5. Before integrating, the consolidator checks `git merge-base --is-ancestor <BASE> <branch>` for every branch.
 
@@ -175,7 +175,7 @@ Conduct from the top level by default: one workstream, interactive iteration, or
 A multi-repo task always nests: one conductor per repo.
 
 How the top-level conductor runs Stage 3 with workstreams:
-1. Record BASE and create each workstream's integration worktree (git bookkeeping): `git -C <repo> worktree add -b ws-<workstream> <abs path> "$BASE"`.
+1. Record BASE and create each workstream's integration worktree (git bookkeeping): `git -C <repo> worktree add -b ws-<workstream> <abs path> <BASE>`.
 2. Spawn all independent conductors (`subagent_type: "conductor"`) in one message. They may run in the background while you end your turn; notifications wake you.
 3. Give each conductor its workstream slice (scope and acceptance criteria), the repo, its integration branch and absolute worktree path, BASE, its depth (1), its concurrency budget, the verify commands, the project conventions, and the Workstream report format below.
 4. Dependent workstreams wait for a later wave, branched from the BASE recorded after the earlier wave is integrated.

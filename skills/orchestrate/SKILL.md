@@ -14,29 +14,21 @@ Full end-to-end pipeline: sync the base branch, cut a new working branch, implem
 
 ## Step 1: Detect Base Branch and Sync
 
-The base branch is NOT always `main`. Ask GitHub for the repo's configured default branch:
+The base branch is NOT always `main`. Ask GitHub for the repo's configured default branch, falling back to the local `origin/HEAD` symref when `gh` is not authenticated or the repo has no remote on GitHub:
 
 ```bash
-BASE=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
-echo "BASE=$BASE"
+BASE_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+echo "BASE_BRANCH=$BASE_BRANCH"
 ```
 
-If `gh` is not authenticated or the repo has no remote on GitHub, fall back to the local `origin/HEAD` symref:
-
-```bash
-if [ -z "$BASE" ]; then
-  BASE=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
-fi
-```
-
-If both fail, STOP and ask the user which branch to base the work on — do NOT guess.
+If it prints an empty name, STOP and ask the user which branch to base the work on — do NOT guess. Otherwise record the printed name as `BASE_BRANCH` and write it in place of `<BASE_BRANCH>` from here on: the Bash tool keeps no variables between calls.
 
 Sync the base branch:
 
 ```bash
 git fetch origin
-git checkout "$BASE"
-git pull --ff-only origin "$BASE"
+git checkout <BASE_BRANCH>
+git pull --ff-only origin <BASE_BRANCH>
 ```
 
 If the working tree is dirty when this runs, STOP and ask the user how to proceed (do NOT stash or discard their changes).
@@ -93,7 +85,7 @@ This replaces the old pattern of a single architect + separate improve cycles. T
 After the cycle finishes, verify:
 ```bash
 git status
-git log "$BASE"..HEAD --oneline
+git log --oneline origin/<BASE_BRANCH>..HEAD
 ```
 
 If the working tree is dirty (uncommitted changes), commit them before moving on.
@@ -163,7 +155,7 @@ After pr-fix completes, report:
 ## Orchestrate Summary
 
 - **Feature:** <description>
-- **Base branch:** <BASE>
+- **Base branch:** <BASE_BRANCH>
 - **Feature branch:** <BRANCH>
 - **Complexity:** <bucket> (<CYCLES> review cycles)
 - **PR:** <PR_URL>
