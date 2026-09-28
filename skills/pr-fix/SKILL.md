@@ -64,7 +64,7 @@ Run the block in one Bash call with `run_in_background: true`, with the PR URL a
 
 Exit codes: 0 means all checks passed; 1 means a check failed (`--fail-fast`) or `gh` failed during the watch; 3 means no checks registered within 5 minutes (the repo may have no CI); 4 means the PR head never matched the local HEAD: push, or fix the `gh pr view` error it printed, and run again; any other non-zero means the block could not start (unset `PR_URL` or `REPO`, or a path that is not a checkout): fix it and run again. Monitor is the alternative when per-check events are wanted.
 
-On exit 3, skip step 3 and handle review comments only.
+On exit 3, skip step 3. With comments=false, report that the PR has no CI checks and stop.
 
 ### 2. Gather PR Context (Parallel)
 
